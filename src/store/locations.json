@@ -1,0 +1,29 @@
+{
+  "locations": [
+    {
+      "label": "Feenstra Amsterdam",
+      "address": "Schepenbergweg 29, 1105 AS Amsterdam",
+      "city": "Amsterdam",
+      "country": "nl",
+      "resolution": 0,
+      "geoJSON": {
+        "type": "FeatureCollection",
+        "features": [
+          {
+            "type": "Feature",
+            "properties": {},
+            "geometry": {
+              "coordinates": [
+                4.945080726604033,
+                52.29520384220609
+              ],
+              "type": "Point"
+            }
+          }
+        ]
+      },
+      "notes": "Kantoor, Trainingcentrum & Werkplaats",
+      "resolution": 0
+    }
+  ]
+}
