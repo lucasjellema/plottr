@@ -4,7 +4,7 @@
       <v-main>
 
         <v-row>
-          <v-col cols="4" offset="4">
+          <v-col cols="8" offset="2">
             <people-table />
           </v-col>  
         </v-row>

@@ -4,7 +4,7 @@
       <v-main>
 
         <v-row>
-          <v-col >
+          <v-col cols="8" offset="2">
             <locations-table />
           </v-col>  
         </v-row>

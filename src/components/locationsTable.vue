@@ -9,11 +9,13 @@
                 <a @click="openMapDialog(item)">
                     <v-icon>mdi-map</v-icon>
                 </a>
-            </template> <template v-slot:item.edit="{ item }">
+            </template> 
+            <template v-slot:item.edit="{ item }">
                 <v-btn icon @click="editItem(item)">
                     <v-icon>mdi-pencil</v-icon>
                 </v-btn>
-            </template> <template v-slot:item.remove="{ item }">
+            </template> 
+            <template v-slot:item.remove="{ item }">
                 <v-btn icon @click="removeItem(item)">
                     <v-icon>mdi-delete</v-icon>
                 </v-btn>
@@ -49,10 +51,10 @@
                 </v-card-actions>
             </v-card>
         </v-dialog>
-        <v-dialog v-model="mapDialog"  max-width="600px">
+        <v-dialog v-model="mapDialog" max-width="600px">
             <v-card>
                 <v-card-title>
-                    <span class="headline">Show location {{locationLabel}} on map</span>
+                    <span class="headline">Show location {{ locationLabel }} on map</span>
                 </v-card-title>
                 <v-card-text>
                     <location-on-map :geoJsonPoint="geoJsonPoint" :zoomLevel="zoomLevel"></location-on-map>
@@ -73,11 +75,10 @@ const { mapResolutionToZoom } = useLocationLibrary();
 import { ref } from 'vue';
 
 const store = useLocationstore()
-//const locationData = storeToRefs(store.locations);
 const locationData = store.locations;
 
 const search = ref("")
-const selected = ref([])
+
 const geoJsonPoint = ref()
 const locationLabel = ref()
 
@@ -165,7 +166,7 @@ const openMapDialog = (item) => {
     geoJsonPoint.value = item.geoJSON.features[0]
     locationLabel.value = item.label
     zoomLevel.value = mapResolutionToZoom(item.resolution);
-    console.log("Zoomlevel" + zoomLevel.value); 
+    console.log("Zoomlevel" + zoomLevel.value);
 
     mapDialog.value = true;
 }
