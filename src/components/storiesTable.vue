@@ -27,11 +27,9 @@
                             <v-text-field v-model="editedStory.label" label="label" required></v-text-field>
                             <v-text-field v-model="editedStory.title" label="title" required></v-text-field>
                             <v-text-field v-model="editedStory.description" label="Description"></v-text-field>
-
-                            <!-- <v-img v-if="imageSrc" :src="imageSrc" class="mt-5" height="50"></v-img> -->
                             
                             <image-editor :image-url="editedStory.imageUrl" :image-id="editedStory.imageId" ref="imageEditorRef" 
-                            image-height="600" image-width="800"
+                            image-height=600 image-width=800
                             @image-change="handleImageChange"></image-editor>
                         </v-form>
                     </v-container>
@@ -55,7 +53,7 @@ import ImageEditor from "./imageEditor.vue"
 import { ref } from 'vue';
 
 const store = useStorieStore()
-const imagesStore = useImagesStore()
+
 const storyData = store.stories;
 
 const search = ref("")
@@ -131,22 +129,6 @@ const saveItem = () => {
     }
     closeDialog();
 }
-
-const handlePaste = async (event) => {
-    await imageEditorRef.value.handlePaste(event)
-
-}
-
-
-// const imageSrc = ref('')
-
-// const displayImageFromDB = async (imageId) => {
-//     imageSrc.value = null
-//     if (!imageId) return
-//     const url = await imagesStore.getUrlForIndexedDBImage(imageId)
-//     imageSrc.value = url;
-// }
-
 
 </script>
   

@@ -1,6 +1,6 @@
 <template>
     <div @paste.prevent="handlePaste">
-        <v-img v-if="imageSrc" :src="imageSrc" class="mt-5"></v-img>
+        <v-img v-if="imageSrc" :src="imageSrc" :width="imageWidth" :height="imageHeight" class="mt-5"></v-img>
         <v-file-input label="Upload image from file" @change="handleFileUpload" accept="image/*"></v-file-input>
         <v-text-field v-model="imageUrl" label="Cover Image URL"></v-text-field>
     </div>
@@ -15,8 +15,8 @@ import { ref, onMounted } from 'vue';
 const props = defineProps({
     imageId: Number,
     imageUrl: String,
-    imageHeight: Number,
-    imageWidth: Number
+    imageHeight: String,
+    imageWidth: String
 });
 
 const imageId = ref(props.imageId)
