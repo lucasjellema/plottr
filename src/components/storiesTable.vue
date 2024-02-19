@@ -30,7 +30,9 @@
 
                             <!-- <v-img v-if="imageSrc" :src="imageSrc" class="mt-5" height="50"></v-img> -->
                             
-                            <image-editor :image-url="editedStory.imageUrl" :image-id="editedStory.imageId" ref="imageEditorRef" @image-change="handleImageChange"></image-editor>
+                            <image-editor :image-url="editedStory.imageUrl" :image-id="editedStory.imageId" ref="imageEditorRef" 
+                            image-height="600" image-width="800"
+                            @image-change="handleImageChange"></image-editor>
                         </v-form>
                     </v-container>
                 </v-card-text>

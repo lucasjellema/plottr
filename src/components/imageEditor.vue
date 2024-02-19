@@ -14,13 +14,16 @@ import { ref, onMounted } from 'vue';
 
 const props = defineProps({
     imageId: Number,
-    imageUrl: String
+    imageUrl: String,
+    imageHeight: Number,
+    imageWidth: Number
 });
 
 const imageId = ref(props.imageId)
 const imageUrl = ref(props.imageUrl)
 const imageSrc = ref("")
-
+const imageHeight = ref(props.imageHeight)
+const imageWidth = ref(props.imageWidth)
 const emit = defineEmits(['imageChange'])
 
 onMounted(() => {
@@ -54,7 +57,7 @@ const handlePaste = async (event) => {
                 const file = items[i].getAsFile();
 
 
-                imagesStore.resizeImage(file, 800, 600, async (resizedBlob) => {
+                imagesStore.resizeImage(file, imageWidth.value, imageHeight.value, async (resizedBlob) => {
                     // Now you have a resized image as a Blob, you can store it in IndexedDB
                     const newImageId = await imagesStore.saveImage(resizedBlob);
                     //   editedStory.value.imageId = imageId;
@@ -89,7 +92,7 @@ const handlePaste = async (event) => {
                         const response = await fetch(text);
                         if (!response.ok) throw new Error('Network response was not ok.');
                         const blob = await response.blob();
-                        imagesStore.resizeImage(blob, 800, 600, async (resizedBlob) => {
+                        imagesStore.resizeImage(blob, imageWidth.value, imageHeight.value, async (resizedBlob) => {
                             const newImageId = await imagesStore.saveImage(resizedBlob);
                             console.log('Image stored in IndexedDB with ID:', newImageId);
                             imageId.value = newImageId
@@ -109,7 +112,7 @@ const handlePaste = async (event) => {
 const handleFileUpload = async (event) => {
     const file = event.target.files[0];
     if (file && file.type.startsWith('image/')) {
-        imagesStore.resizeImage(file, 800, 600, async (resizedBlob) => {
+        imagesStore.resizeImage(file, imageWidth.value, imageHeight.value, async (resizedBlob) => {
             // Now you have a resized image as a Blob, you can store it in IndexedDB
             // Assuming this function stores the Blob in IndexedDB
 
@@ -135,11 +138,8 @@ const isValidImageUrl = (url) => {
     return url.match(/\.(jpeg|jpg|gif|png)$/i) != null;
 }
 
-const increment = () => {
-    console.log('increment');
-}
 defineExpose({
-    handlePaste, increment
+    handlePaste
 });
 
 
