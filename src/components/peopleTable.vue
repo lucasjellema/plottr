@@ -33,7 +33,7 @@
                             <v-text-field v-model="editedPerson.lastName" label="Last Name"></v-text-field>
                             <v-text-field v-model="editedPerson.linkedinURL" label="Linkedin URL"></v-text-field>
                             <image-editor :image-url="editedPerson.imageUrl" :image-id="editedPerson.imageId" ref="imageEditorRef" 
-                            image-height=200 image-width=270
+                            image-height=300 image-width=400
                             @image-change="handleImageChange"></image-editor>
 
                         </v-form>
