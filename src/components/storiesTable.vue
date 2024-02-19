@@ -17,7 +17,7 @@
         </v-data-table>
         <!-- Add/Edit Story Dialog -->
         <v-dialog v-model="dialog" persistent max-width="600px">
-            <v-card @paste.prevent="handlePaste">
+            <v-card >
                 <v-card-title>
                     <span class="headline">{{ editedIndex > 0 ? 'Edit Story' : 'Add New Story' }}</span>
                 </v-card-title>
@@ -27,13 +27,10 @@
                             <v-text-field v-model="editedStory.label" label="label" required></v-text-field>
                             <v-text-field v-model="editedStory.title" label="title" required></v-text-field>
                             <v-text-field v-model="editedStory.description" label="Description"></v-text-field>
-                            <!-- TODO: Add image -->
 
-                            <v-img v-if="imageSrc" :src="imageSrc" class="mt-5"></v-img>
-                            <v-file-input label="Upload image from file" @change="handleFileUpload"
-                                accept="image/*"></v-file-input>
-                            <v-text-field v-model="editedStory.imageUrl" label="Cover Image URL"></v-text-field>
-
+                            <!-- <v-img v-if="imageSrc" :src="imageSrc" class="mt-5" height="50"></v-img> -->
+                            
+                            <image-editor :image-url="editedStory.imageUrl" :image-id="editedStory.imageId" ref="imageEditorRef" @image-change="handleImageChange"></image-editor>
                         </v-form>
                     </v-container>
                 </v-card-text>
@@ -51,6 +48,7 @@
 
 import { useStorieStore } from "../store/storiesStore";
 import { useImagesStore } from "../store/imagesStore";
+import ImageEditor from "./imageEditor.vue"
 
 import { ref } from 'vue';
 
@@ -70,6 +68,7 @@ const headers = [
 
 
 const dialog = ref(false)
+const imageEditorRef = ref(null)
 
 const editedIndex = ref(-1)
 
@@ -88,11 +87,18 @@ const defaultStory = {
     imageUrl: '',
 }
 
+const handleImageChange = (event) => {
+    console.log(JSON.stringify(event))
+    editedStory.value.imageId = event.imageId	
+    editedStory.value.imageUrl = event.imageUrl	
+    
+}
+
 const editItem = (item) => {
     editedIndex.value = 1
     editedStory.value = { ...item }; // Make a copy of the item to edit
-    if (editedStory.value.imageId) displayImageFromDB(editedStory.value.imageId)
-    else imageSrc.value = editedStory.value.imageUrl
+    // if (editedStory.value.imageId) displayImageFromDB(editedStory.value.imageId)
+    // else imageSrc.value = editedStory.value.imageUrl
     dialog.value = true;
 }
 
@@ -125,77 +131,19 @@ const saveItem = () => {
 }
 
 const handlePaste = async (event) => {
+    await imageEditorRef.value.handlePaste(event)
 
-    if (event.clipboardData && event.clipboardData.items) {
-        const items = event.clipboardData.items;
-        for (let i = 0; i < items.length; i++) {
-            // Check if the item is an image
-            if (items[i].type.indexOf("image") !== -1) {
-                const file = items[i].getAsFile();
-                imagesStore.resizeImage(file, 800, 600, async (resizedBlob) => {
-                    // Now you have a resized image as a Blob, you can store it in IndexedDB
-                    const imageId = await  imagesStore.saveImage(resizedBlob);
-                    editedStory.value.imageId = imageId;
-                    console.log('Image stored in IndexedDB with ID:', imageId);
-                    displayImageFromDB(imageId)
-
-                });
-            }
-
-            // if item is a string that is a valid URL - set the imageUrl property and try to download and store that image (that will probably fail because of CORS limitations)
-            // 
-            if (items[i].type.indexOf("text") !== -1) {
-                const text = (event.clipboardData || window.clipboardData).getData('text');
-                if (isValidImageUrl(text)) { // Implement isValidImageUrl according to your needs
-                    editedStory.value.imageUrl = text
-                    imageSrc.value = text
-                    try {
-                        const response = await fetch(text);
-                        if (!response.ok) throw new Error('Network response was not ok.');
-                        const blob = await response.blob();
-                        imagesStore.resizeImage(blob, 800, 600, async (resizedBlob) => {
-                            const imageId = await  imagesStore.saveImage(resizedBlob);
-                            editedStory.value.imageId = imageId;
-                            console.log('Image stored in IndexedDB with ID:', imageId);
-                            displayImageFromDB(imageId)
-                        });
-                    } catch (error) {
-                        console.error('Fetching and storing image failed:', error);
-                    }
-                }
-
-            }
-        }
-    }
-}
-const handleFileUpload = async (event) => {
-    const file = event.target.files[0];
-    if (file && file.type.startsWith('image/')) {
-        imagesStore.resizeImage(file, 800, 600, async (resizedBlob) => {
-            // Now you have a resized image as a Blob, you can store it in IndexedDB
-            // Assuming this function stores the Blob in IndexedDB
-
-            const imageId = await imagesStore.saveImage(resizedBlob);
-            editedStory.value.imageId = imageId;
-            console.log('Image stored in IndexedDB with ID:', imageId);
-            displayImageFromDB(imageId)
-        });
-    }
-}
-
-const isValidImageUrl = (url) => {
-    return url.match(/\.(jpeg|jpg|gif|png)$/i) != null;
 }
 
 
-const imageSrc = ref('')
+// const imageSrc = ref('')
 
-const displayImageFromDB = async (imageId) => {
-    imageSrc.value = null
-    if (!imageId) return
-    const url = await imagesStore.getUrlForIndexedDBImage(imageId)
-    imageSrc.value = url; // Assuming you have an imageSrc data property for binding to an <img> src        
-}
+// const displayImageFromDB = async (imageId) => {
+//     imageSrc.value = null
+//     if (!imageId) return
+//     const url = await imagesStore.getUrlForIndexedDBImage(imageId)
+//     imageSrc.value = url;
+// }
 
 
 </script>

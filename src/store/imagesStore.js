@@ -1,5 +1,8 @@
 import { defineStore } from 'pinia';
 
+import exifr from 'exifr';
+
+
 
 import { v4 as uuidv4 } from 'uuid';
 
@@ -117,8 +120,30 @@ export const useImagesStore = defineStore('imageData', () => {
         reader.readAsDataURL(file);
     }
 
+    const extractEXIFData = async (imageFile) => {
+        try {
+          const output = await exifr.parse(imageFile, { gps: true });
+          console.log(output); // Logs all extracted metadata
+      
+          const dateTimeOriginal = output.DateTimeOriginal;
+          const gpsInfo =  {
+            latitude: output.GPSLatitude,
+            longitude: output.GPSLongitude,
+            altitude: output.GPSAltitude,
+
+
+          } ;
+      
+          return { dateTimeOriginal, gpsInfo };
+        } catch (error) {
+          console.error('Error extracting EXIF data:', error);
+        }
+      }
+
+      
+
     return {
-        getUrlForIndexedDBImage, resizeImage, saveImage
+        getUrlForIndexedDBImage, resizeImage, saveImage, extractEXIFData
     };
 });
 
