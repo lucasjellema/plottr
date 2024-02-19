@@ -80,6 +80,26 @@ export const useImagesStore = defineStore('imageData', () => {
         })
     }
     
+    const removeImage = async (fileId) => {
+        return new Promise((resolve, reject) => {
+            openDatabase().then((db) => {
+                const transaction = db.transaction(['images'], 'readwrite');
+                const store = transaction.objectStore('images');
+                const request = store.delete(fileId);
+                request.onsuccess = (event) => {
+                    console.log('Image deleted from IndexedDB', request.result);
+                    resolve(null)
+                };
+                request.onerror = (event) => {
+                    reject('Error removing image:' + event.target.error);
+                };
+            }).catch((error) => {
+                reject('Error opening database:' + error);
+            });
+        })
+    }
+    
+
     const resizeImage = (file, maxWidth, maxHeight, callback) => {
         const reader = new FileReader();
         reader.onload = (e) => {
@@ -143,7 +163,7 @@ export const useImagesStore = defineStore('imageData', () => {
       
 
     return {
-        getUrlForIndexedDBImage, resizeImage, saveImage, extractEXIFData
+        getUrlForIndexedDBImage, resizeImage, saveImage,removeImage, extractEXIFData
     };
 });
 

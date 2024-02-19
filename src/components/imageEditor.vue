@@ -1,8 +1,9 @@
 <template>
     <div @paste.prevent="handlePaste">
+        <v-btn v-if="imageSrc" @click="clearImage" prepend-icon="mdi-close-box">Clear Image</v-btn>
         <v-img v-if="imageSrc" :src="imageSrc" :width="imageWidth" :height="imageHeight" class="mt-5"></v-img>
         <v-file-input label="Upload image from file" @change="handleFileUpload" accept="image/*"></v-file-input>
-        <v-text-field v-model="imageUrl" label="Cover Image URL"></v-text-field>
+        <v-text-field v-model="imageUrl" label="Image URL"></v-text-field>
     </div>
 </template>
 <script setup>
@@ -39,6 +40,17 @@ const setImageIdUrl = async () => {
         const imageIdUrl = await imagesStore.getUrlForIndexedDBImage(props.imageId)
         imageSrc.value = imageIdUrl
     }
+}
+
+const clearImage = async () => {
+
+    // todo remove from indexedDB image with if imageId.value
+    if (imageId.value) await imagesStore.removeImage(imageId.value	)
+    imageId.value=null
+    imageUrl.value=null
+    imageSrc.value = null
+    emitImageChange()
+
 }
 
 const displayImageFromDB = async (imageId) => {
