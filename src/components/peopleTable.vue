@@ -1,9 +1,9 @@
 <template>
-    <v-container fluid >
+    <v-container fluid>
         <v-btn color="primary" class="mb-2" @click="openDialog">Add New Person</v-btn>
 
         <v-text-field v-model="search" label="Search" clearable></v-text-field>
-        <v-data-table :headers="headers" :items="peopleData" sticky  :search="search">
+        <v-data-table :headers="headers" :items="peopleData" sticky :search="search">
             <template v-slot:item.linkedinURL="{ item }">
                 <a :href="prefixHttp(item.linkedinURL)" target="_new">
                     <v-icon>mdi-linkedin</v-icon>
@@ -13,25 +13,29 @@
                 <v-btn icon @click="editItem(item)">
                     <v-icon>mdi-pencil</v-icon>
                 </v-btn>
-            </template> 
+            </template>
             <template v-slot:item.remove="{ item }">
                 <v-btn icon @click="removeItem(item)">
                     <v-icon>mdi-delete</v-icon>
                 </v-btn>
             </template>
         </v-data-table>
-                <!-- Add/Edit Person Dialog -->
-                <v-dialog v-model="dialog" persistent max-width="600px">
+        <!-- Add/Edit Person Dialog -->
+        <v-dialog v-model="dialog" persistent max-width="600px">
             <v-card>
                 <v-card-title>
                     <span class="headline">{{ editedIndex > 0 ? 'Edit Person' : 'Add New Person' }}</span>
                 </v-card-title>
                 <v-card-text>
                     <v-container>
-                        <v-form ref="form" v-model="valid">
+                        <v-form ref="form" >
                             <v-text-field v-model="editedPerson.firstName" label="First Name" required></v-text-field>
                             <v-text-field v-model="editedPerson.lastName" label="Last Name"></v-text-field>
                             <v-text-field v-model="editedPerson.linkedinURL" label="Linkedin URL"></v-text-field>
+                            <image-editor :image-url="editedPerson.imageUrl" :image-id="editedPerson.imageId" ref="imageEditorRef" 
+                            image-height=200 image-width=270
+                            @image-change="handleImageChange"></image-editor>
+
                         </v-form>
                     </v-container>
                 </v-card-text>
@@ -49,8 +53,8 @@
 <script setup>
 
 import { usePeopleDataStore } from "../store/peopleStore";
-import {ref} from 'vue';
-
+import { ref } from 'vue';
+import ImageEditor from "./imageEditor.vue"
 const store = usePeopleDataStore();
 
 const peopleData = store.people;
@@ -65,14 +69,17 @@ const headers = [
 ]
 
 const dialog = ref(false)
+const imageEditorRef = ref(null)
 
 const editedIndex = ref(-1)
 
-let editedPerson = {
+let editedPerson = ref({
     firstName: '',
     lastName: '',
     linkedinURL: '',
-}
+    imageUrl: '',
+    imageId: '' 
+})
 
 const defaultPerson = {
     firstName: '',
@@ -80,9 +87,15 @@ const defaultPerson = {
     linkedinURL: '',
 }
 
+const handleImageChange = (event) => {
+    console.log(JSON.stringify(event))
+    editedPerson.value.imageId = event.imageId	
+    editedPerson.value.imageUrl = event.imageUrl	
+    
+}
 const editItem = (item) => {
     editedIndex.value = 1
-    editedPerson = { ...item }; // Make a copy of the item to edit
+    editedPerson.value = { ...item }; // Make a copy of the item to edit
     dialog.value = true;
 }
 
@@ -100,16 +113,16 @@ const closeDialog = () => {
 }
 
 const resetForm = () => {
-    editedPerson = { ...defaultPerson };
+    editedPerson.value = { ...defaultPerson };
     editedIndex.value = -1;
 }
 
 const saveItem = () => {
     if (editedIndex.value > -1) {
         // update existing location 
-        store.updatePerson(editedPerson)
+        store.updatePerson(editedPerson.value)
     } else {
-        store.addPerson(editedPerson)
+        store.addPerson(editedPerson.value)
     }
     closeDialog();
 }
