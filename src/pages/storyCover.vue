@@ -19,6 +19,7 @@
                     <v-btn prepend-icon="mdi-human-male-female"  title="Story Cast of Characters" class="mb-2">Cast of Characters</v-btn>
                     <v-btn prepend-icon="mdi-compass-outline"  title="Story Locations" class="mb-2 mr-5">Sites</v-btn>
                     <v-btn prepend-icon="mdi-more"  title="Events, Milestones, Activities" class="mb-2">Actions</v-btn>
+                    <v-btn prepend-icon="mdi-clock-fast"  title="Important Moments and Periods" class="mb-2">Timestones</v-btn>
                     <v-btn prepend-icon="mdi-sort-descending"  title="Actions plotted against time" class="mb-2">Chronograms (Timelines)</v-btn>
                     <v-btn prepend-icon="mdi-book-multiple"  title="Subplots, Overarching Storlines" class="mb-2" >Related Stories</v-btn>
                   </div>
@@ -39,10 +40,10 @@
 <script setup>
 
 
-import { ref, computed } from 'vue'
+import { ref, computed ,onMounted} from 'vue'
 import { useStorieStore } from "@/store/storiesStore";
 const store = useStorieStore()
-const storyData = store.stories;
+
 
 import { useImagesStore } from "@/store/imagesStore";
 const imagesStore = useImagesStore()
@@ -51,16 +52,26 @@ const storyImageSrc = ref()
 
 const currentStory = computed(() => store.currentStory)
 
+onMounted(() => {
+    setCoverImage( currentStory.value);
+});
+
 watch(currentStory, async (newCurrentStory) => {
   if (newCurrentStory) {
-    if (newCurrentStory.imageId) {
-      const url = await imagesStore.getUrlForIndexedDBImage(newCurrentStory.imageId)
-      storyImageSrc.value = url
-    } else {
-      storyImageSrc.value = newCurrentStory.imageUrl
-    }
+    setCoverImage(newCurrentStory) 
   }
 })
+
+const setCoverImage = async (story) => {
+  if (story.imageId) {
+      const url = await imagesStore.getUrlForIndexedDBImage(story.imageId)
+      storyImageSrc.value = url
+    } else {
+      storyImageSrc.value = story.imageUrl
+    }
+  
+};
+
 
 //
 </script>

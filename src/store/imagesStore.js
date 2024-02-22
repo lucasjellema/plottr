@@ -34,9 +34,14 @@ export const useImagesStore = defineStore('imageData', () => {
         });
     }
 
+const imageUrlCache = {} // contains all URLs handed out for imagedIds in the currentr session
+
     const getUrlForIndexedDBImage = (imageId) => {
+
         return new Promise((resolve, reject) => {
             if (!imageId) return
+            const value = imageUrlCache[imageId] ?? null;
+            if (value) resolve(value)
 
             openDatabase().then((db) => {
                 const transaction = db.transaction(['images'], 'readonly');
@@ -46,6 +51,7 @@ export const useImagesStore = defineStore('imageData', () => {
                 request.onsuccess = (event) => {
                     const imageFile = event.target.result.image;
                     const url = URL.createObjectURL(imageFile);
+                    imageUrlCache[imageId] = url
                     resolve(url)
                 };
 

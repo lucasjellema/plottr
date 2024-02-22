@@ -1,7 +1,7 @@
 <template>
   <v-app>
     <v-app-bar app>
-      <v-toolbar-title>Plottr {{ currentStory ? ' - ' + currentStory.label : '' }}</v-toolbar-title>
+      <v-toolbar-title @click="gotoStory()">Plottr {{ currentStory ? ' - ' + currentStory.label : '' }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn icon="mdi-filmstrip" @click="dialog = true" title="Select Story"></v-btn>
       <v-btn text to="/people">People</v-btn>
@@ -36,7 +36,7 @@
 import { ref, computed } from 'vue'
 import { useStorieStore } from "./store/storiesStore";
 
-import { useRouter, useRoute } from 'vue-router'
+import { useRouter } from 'vue-router'
 
 const router = useRouter()
 const store = useStorieStore()
@@ -58,8 +58,17 @@ watch(currentStory, async (newCurrentStory) => {
       storyImageSrc.value = newCurrentStory.imageUrl
     }
     router.push('/storyCover')
+    dialog.value = false
   }
 })
+
+const gotoStory = () => {
+  if (currentStory.value) {
+    	
+  
+  router.push('/storyCover')
+  }
+}
 
 const dialog = ref(false)
 
