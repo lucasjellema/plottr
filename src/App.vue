@@ -35,6 +35,10 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useStorieStore } from "./store/storiesStore";
+
+import { useRouter, useRoute } from 'vue-router'
+
+const router = useRouter()
 const store = useStorieStore()
 const storyData = store.stories;
 
@@ -53,6 +57,7 @@ watch(currentStory, async (newCurrentStory) => {
     } else {
       storyImageSrc.value = newCurrentStory.imageUrl
     }
+    router.push('/storyCover')
   }
 })
 

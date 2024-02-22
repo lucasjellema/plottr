@@ -5,6 +5,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import peopleTable from '@/pages/people.vue';
 import locationsTable from '@/pages/locations.vue';
 import storiesTable from '@/pages/stories.vue';
+import storyCover from '@/pages/storyCover.vue';
 
 const router = createRouter({
   history: createWebHistory(process.env.BASE_URL),
@@ -27,6 +28,11 @@ const router = createRouter({
       path: '/stories',
       name: 'Stories',
       component: storiesTable,
+    },
+    {
+      path: '/storyCover',
+      name: 'StoryCover',
+      component: storyCover,
     },
   ],
 })
