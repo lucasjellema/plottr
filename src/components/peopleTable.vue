@@ -34,7 +34,7 @@
                             <v-text-field v-model="editedPerson.linkedinURL" label="Linkedin URL"></v-text-field>
                             <image-editor :image-url="editedPerson.imageUrl" :image-id="editedPerson.imageId" ref="imageEditorRef" 
                             image-height=300 image-width=400
-                            @image-change="handleImageChange"></image-editor>
+                            @image-change="handleImageChange" @gps-data="handleGPSData"></image-editor>
 
                         </v-form>
                     </v-container>
@@ -91,7 +91,10 @@ const handleImageChange = (event) => {
     console.log(JSON.stringify(event))
     editedPerson.value.imageId = event.imageId	
     editedPerson.value.imageUrl = event.imageUrl	
-    
+}
+
+const handleGPSData = (event) => {
+    console.log("GPS Data for image "+JSON.stringify(event))
 }
 const editItem = (item) => {
     editedIndex.value = 1

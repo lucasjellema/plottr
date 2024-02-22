@@ -41,6 +41,12 @@
                             <a href="https://geojson.io" target="_new">Compose GeoJSON
                                 <v-icon>mdi-map</v-icon>
                             </a>
+                            <v-btn v-if="imageMetadata && imageMetadata.gpsInfo && imageMetadata.gpsInfo.latitude" @click="createGeoJSONfromImageGPS" prepend-icon="mdi-web">Set GeoJSON from Image GPS</v-btn>
+
+                            <image-editor :image-url="editedLocation.imageUrl" :image-id="editedLocation.imageId" ref="imageEditorRef" 
+                            image-height=600 image-width=800
+                            @image-change="handleImageChange" @gps-data="handleGPSData"></image-editor>
+
                         </v-form>
                     </v-container>
                 </v-card-text>
@@ -68,7 +74,7 @@
 
 import { useLocationstore } from "../store/locationsStore";
 import { useLocationLibrary } from '../composables/useLocationLibrary';
-
+import ImageEditor from "./imageEditor.vue"
 // Use the composable
 const { mapResolutionToZoom } = useLocationLibrary();
 
@@ -78,9 +84,11 @@ const store = useLocationstore()
 const locationData = store.locations;
 
 const search = ref("")
+const imageEditorRef = ref(null)
 
 const geoJsonPoint = ref()
 const locationLabel = ref()
+const imageMetadata = ref()
 
 const headers = [
     { title: 'Label', value: 'label', sortable: true },
@@ -105,15 +113,17 @@ const mapDialog = ref(false)
 
 const editedIndex = ref(-1)
 
-let editedLocation = {
+let editedLocation = ref({
     label: '',
     address: '',
     city: '',
     country: 'nl',
     resolution: 0,
     geoJSON: {},
-    geoJSONText: ""
-}
+    geoJSONText: "",
+    imageUrl: '',
+    imageId: '' 
+})
 
 const defaultLocation = {
     label: '',
@@ -125,10 +135,26 @@ const defaultLocation = {
     geoJSONText: "{}"
 }
 
+const createGeoJSONfromImageGPS = () => {
+    editedLocation.value.geoJSON =
+    {"type":"FeatureCollection","features":[{"type":"Feature","properties":{},"geometry":{"coordinates":[imageMetadata.value.gpsInfo.longitude,imageMetadata.value.gpsInfo.latitude],"type":"Point"}}]}
+    editedLocation.value.geoJSONText = JSON.stringify(editedLocation.value.geoJSON)
+}
+const handleImageChange = (event) => {
+    console.log(JSON.stringify(event))
+    editedLocation.value.imageId = event.imageId	
+    editedLocation.value.imageUrl = event.imageUrl	
+}
+
+const handleGPSData = (event) => {
+    console.log("GPS Data for image "+JSON.stringify(event))
+    imageMetadata.value = event
+}
 const editItem = (item) => {
     editedIndex.value = 1
-    editedLocation = { ...item }; // Make a copy of the item to edit
-    editedLocation.geoJSONText = JSON.stringify(editedLocation.geoJSON)
+    editedLocation.value = { ...item }; // Make a copy of the item to edit
+    editedLocation.value.geoJSONText = JSON.stringify(editedLocation.value.geoJSON)
+    imageMetadata.value = null
     dialog.value = true;
 }
 
@@ -146,17 +172,19 @@ const closeDialog = () => {
 }
 
 const resetForm = () => {
-    editedLocation = { ...defaultLocation };
+    imageMetadata.value = null
+
+    editedLocation.value = { ...defaultLocation };
     editedIndex.value = -1;
 }
 
 const saveItem = () => {
-    editedLocation.geoJSON = JSON.parse(editedLocation.geoJSONText)
+    editedLocation.value.geoJSON = JSON.parse(editedLocation.value.geoJSONText)
     if (editedIndex.value > -1) {
         // update existing location 
-        store.updateLocation(editedLocation)
+        store.updateLocation(editedLocation.value)
     } else {
-        store.addLocation(editedLocation)
+        store.addLocation(editedLocation.value)
     }
     closeDialog();
 }

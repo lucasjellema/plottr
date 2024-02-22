@@ -145,11 +145,16 @@ export const useImagesStore = defineStore('imageData', () => {
           const output = await exifr.parse(imageFile, { gps: true });
           console.log(output); // Logs all extracted metadata
       
-          const dateTimeOriginal = output.DateTimeOriginal;
+//          const dateTimeOriginal = output.DateTimeOriginal;
+          // Mon Mar 12 2018 08:10:41 GMT+0100 (Central European Standard Time) {}
+          const dateTimeOriginal = new Date(output.DateTimeOriginal);
+
           const gpsInfo =  {
-            latitude: output.GPSLatitude,
-            longitude: output.GPSLongitude,
-            altitude: output.GPSAltitude,
+            GPSLatitude: output.GPSLatitude, // GPSLatitude is in degrees (N = +, S = -) :   (3) [47, 29, 55.37]
+            GPSLongitude: output.GPSLongitude, // GPSLongitude is in degrees (E = +, W = -) : (3) [19, 4, 12.69]
+            altitude: output.GPSAltitude, // GPSAltitude is in meters above sea level    : 119.16872427983539
+            latitude    : output.latitude, // 47.49871388888889
+            longitude: output.longitude, // 19.070191666666666
 
 
           } ;
