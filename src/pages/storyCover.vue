@@ -17,7 +17,7 @@
                   </div>
                   <div class="text-caption">
                     <v-btn prepend-icon="mdi-human-male-female"  title="Story Cast of Characters" class="mb-2">Cast of Characters</v-btn>
-                    <v-btn prepend-icon="mdi-compass-outline"  title="Story Locations" class="mb-2 mr-5">Sites</v-btn>
+                    <v-btn prepend-icon="mdi-compass-outline"  title="Story Locations" class="mb-2 mr-5" to="/sites">Sites</v-btn>
                     <v-btn prepend-icon="mdi-more"  title="Events, Milestones, Activities" class="mb-2">Actions</v-btn>
                     <v-btn prepend-icon="mdi-clock-fast"  title="Important Moments and Periods" class="mb-2">Timestones</v-btn>
                     <v-btn prepend-icon="mdi-sort-descending"  title="Actions plotted against time" class="mb-2">Chronograms (Timelines)</v-btn>

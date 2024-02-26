@@ -34,7 +34,7 @@ export const useImagesStore = defineStore('imageData', () => {
         });
     }
 
-const imageUrlCache = {} // contains all URLs handed out for imagedIds in the currentr session
+    const imageUrlCache = {} // contains all URLs handed out for imagedIds in the currentr session
 
     const getUrlForIndexedDBImage = (imageId) => {
 
@@ -85,7 +85,7 @@ const imageUrlCache = {} // contains all URLs handed out for imagedIds in the cu
             });
         })
     }
-    
+
     const removeImage = async (fileId) => {
         return new Promise((resolve, reject) => {
             openDatabase().then((db) => {
@@ -104,7 +104,7 @@ const imageUrlCache = {} // contains all URLs handed out for imagedIds in the cu
             });
         })
     }
-    
+
 
     const resizeImage = (file, maxWidth, maxHeight, callback) => {
         const reader = new FileReader();
@@ -114,11 +114,11 @@ const imageUrlCache = {} // contains all URLs handed out for imagedIds in the cu
             img.onload = () => {
                 const canvas = document.createElement("canvas");
                 const ctx = canvas.getContext("2d");
-    
+
                 // Calculate the new image dimensions
                 let width = img.width;
                 let height = img.height;
-    
+
                 if (width > height) {
                     if (width > maxWidth) {
                         height *= maxWidth / width;
@@ -132,10 +132,10 @@ const imageUrlCache = {} // contains all URLs handed out for imagedIds in the cu
                 }
                 canvas.width = width;
                 canvas.height = height;
-    
+
                 // Draw the resized image
                 ctx.drawImage(img, 0, 0, width, height);
-    
+
                 // Convert canvas to Blob
                 canvas.toBlob((blob) => {
                     callback(blob);
@@ -148,33 +148,38 @@ const imageUrlCache = {} // contains all URLs handed out for imagedIds in the cu
 
     const extractEXIFData = async (imageFile) => {
         try {
-          const output = await exifr.parse(imageFile, { gps: true });
-          console.log(output); // Logs all extracted metadata
-      
-//          const dateTimeOriginal = output.DateTimeOriginal;
-          // Mon Mar 12 2018 08:10:41 GMT+0100 (Central European Standard Time) {}
-          const dateTimeOriginal = new Date(output.DateTimeOriginal);
+            const output = await exifr.parse(imageFile, { gps: true });
+            console.log(output); // Logs all extracted metadata
+            if (output) {
 
-          const gpsInfo =  {
-            GPSLatitude: output.GPSLatitude, // GPSLatitude is in degrees (N = +, S = -) :   (3) [47, 29, 55.37]
-            GPSLongitude: output.GPSLongitude, // GPSLongitude is in degrees (E = +, W = -) : (3) [19, 4, 12.69]
-            altitude: output.GPSAltitude, // GPSAltitude is in meters above sea level    : 119.16872427983539
-            latitude    : output.latitude, // 47.49871388888889
-            longitude: output.longitude, // 19.070191666666666
+                //          const dateTimeOriginal = output.DateTimeOriginal;
+                // Mon Mar 12 2018 08:10:41 GMT+0100 (Central European Standard Time) {}
+                const dateTimeOriginal = output.DateTimeOriginal ? new Date(output.DateTimeOriginal) : null;
+
+                const gpsInfo = {
+                    GPSLatitude: output.GPSLatitude, // GPSLatitude is in degrees (N = +, S = -) :   (3) [47, 29, 55.37]
+                    GPSLongitude: output.GPSLongitude, // GPSLongitude is in degrees (E = +, W = -) : (3) [19, 4, 12.69]
+                    altitude: output.GPSAltitude, // GPSAltitude is in meters above sea level    : 119.16872427983539
+                    latitude: output.latitude, // 47.49871388888889
+                    longitude: output.longitude, // 19.070191666666666
 
 
-          } ;
-      
-          return { dateTimeOriginal, gpsInfo };
+                };
+
+                return { dateTimeOriginal, gpsInfo };
+            }
+            console.warn('No EXIF data found:');
+            return null
         } catch (error) {
-          console.error('Error extracting EXIF data:', error);
+            console.error('Error extracting EXIF data:', error);
+            return null
         }
-      }
+    }
 
-      
+
 
     return {
-        getUrlForIndexedDBImage, resizeImage, saveImage,removeImage, extractEXIFData
+        getUrlForIndexedDBImage, resizeImage, saveImage, removeImage, extractEXIFData
     };
 });
 

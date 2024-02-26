@@ -2,7 +2,8 @@
     <div @paste.prevent="handlePaste">
         <v-btn v-if="imageSrc" @click="clearImage" prepend-icon="mdi-close-box">Clear Image</v-btn>
         <v-img v-if="imageSrc" :src="imageSrc" :width="imageWidth" :height="imageHeight" class="mt-5"></v-img>
-        <v-file-input label="Upload image from file" @change="handleFileUpload" accept="image/*"></v-file-input>
+        <v-file-input label="Upload image from file" @change="handleFileUpload" accept="image/*"
+            :multiple="isMultiple"></v-file-input>
         <v-text-field v-model="imageUrl" label="Image URL"></v-text-field>
     </div>
 </template>
@@ -17,7 +18,8 @@ const props = defineProps({
     imageId: Number,
     imageUrl: String,
     imageHeight: String,
-    imageWidth: String
+    imageWidth: String,
+    allowMultipleFiles: Boolean
 });
 
 const imageId = ref(props.imageId)
@@ -25,7 +27,8 @@ const imageUrl = ref(props.imageUrl)
 const imageSrc = ref("")
 const imageHeight = ref(props.imageHeight)
 const imageWidth = ref(props.imageWidth)
-const emit = defineEmits(['imageChange','gpsData'])
+const isMultiple = ref(props.allowMultipleFiles)
+const emit = defineEmits(['imageChange', 'gpsData'])
 
 onMounted(() => {
     setImageIdUrl()
@@ -54,9 +57,9 @@ const clearImage = async () => {
 // remove existing image from indexedDB or reset imageUrl
 const resetImage = async () => {
     // remove from indexedDB image with if imageId.value
-    if (imageId.value) await imagesStore.removeImage(imageId.value	)
-    imageId.value=null
-    imageUrl.value=null
+    if (imageId.value) await imagesStore.removeImage(imageId.value)
+    imageId.value = null
+    imageUrl.value = null
     imageSrc.value = null
 }
 
@@ -83,18 +86,16 @@ const handlePaste = async (event) => {
                     imageId.value = newImageId
                     imageUrl.value = null
                     emitImageChange()
+                    imagesStore.extractEXIFData(file).then(({ dateTimeOriginal, gpsInfo }) => {
+                        console.log('Timestamp:', dateTimeOriginal);
+                        console.log('GPS Info:', gpsInfo);
+                        // Process the EXIF data as needed
+                        emitGPSData({ dateTimeOriginal, gpsInfo, imageId: newImageId })
+                    }).catch(error => {
+                        console.error('Error extracting EXIF data:', error);
+                    });
                     displayImageFromDB(newImageId)
                 });
-
-                imagesStore.extractEXIFData(file).then(({ dateTimeOriginal, gpsInfo }) => {
-                    console.log('Timestamp:', dateTimeOriginal);
-                    console.log('GPS Info:', gpsInfo);
-                    // Process the EXIF data as needed
-                    emitGPSData( { dateTimeOriginal, gpsInfo })
-                }).catch(error => {
-                    console.error('Error extracting EXIF data:', error);
-                });
-
             }
 
             // if item is a string that is a valid URL - set the imageUrl property and try to download and store that image (that will probably fail because of CORS limitations)
@@ -128,29 +129,31 @@ const handlePaste = async (event) => {
     }
 }
 const handleFileUpload = async (event) => {
-    const file = event.target.files[0];
-    if (file && file.type.startsWith('image/')) {
-        imagesStore.resizeImage(file, imageWidth.value, imageHeight.value, async (resizedBlob) => {
-            // Now you have a resized image as a Blob, you can store it in IndexedDB
-            // Assuming this function stores the Blob in IndexedDB
+    const files = event.target.files;
+    for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        if (file && file.type.startsWith('image/')) {
+            imagesStore.resizeImage(file, imageWidth.value, imageHeight.value, async (resizedBlob) => {
+                // Now you have a resized image as a Blob, you can store it in IndexedDB
+                // Assuming this function stores the Blob in IndexedDB
 
-            const newImageId = await imagesStore.saveImage(resizedBlob);
-            resetImage() // if a prior image was defined, remove it now
-            imageId.value = newImageId;
-            emitImageChange()
-            console.log('Image stored in IndexedDB with ID:', newImageId);
-            displayImageFromDB(newImageId)
-        });
-        imagesStore.extractEXIFData(file).then(({ dateTimeOriginal, gpsInfo }) => {
-            console.log('Timestamp:', dateTimeOriginal);
-            console.log('GPS Info:', gpsInfo);
-            // Process the EXIF data as needed
-            emitGPSData( { dateTimeOriginal, gpsInfo })
+                const newImageId = await imagesStore.saveImage(resizedBlob);
+                resetImage() // if a prior image was defined, remove it now
+                imageId.value = newImageId;
+                emitImageChange()
+                console.log('Image stored in IndexedDB with ID:', newImageId);
+                imagesStore.extractEXIFData(file).then(({ dateTimeOriginal, gpsInfo }) => {
+                    console.log('Timestamp:', dateTimeOriginal);
+                    console.log('GPS Info:', gpsInfo);
+                    // Process the EXIF data as needed
+                    emitGPSData({ dateTimeOriginal, gpsInfo, imageId: newImageId })
 
-        }).catch(error => {
-            console.error('Error extracting EXIF data:', error);
-        });
-
+                }).catch(error => {
+                    console.warn('Error extracting EXIF data:', error);
+                });
+                displayImageFromDB(newImageId)
+            });
+        }
     }
 }
 
