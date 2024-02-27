@@ -49,10 +49,12 @@ export const useImagesStore = defineStore('imageData', () => {
                 const request = store.get(imageId);
 
                 request.onsuccess = (event) => {
-                    const imageFile = event.target.result.image;
-                    const url = URL.createObjectURL(imageFile);
-                    imageUrlCache[imageId] = url
-                    resolve(url)
+                    try {
+                        const imageFile = event.target.result.image;
+                        const url = URL.createObjectURL(imageFile);
+                        imageUrlCache[imageId] = url
+                        resolve(url)
+                    } catch (e) { reject(e) }
                 };
 
                 request.onerror = (event) => {
