@@ -1,12 +1,15 @@
 import { defineStore } from 'pinia';
 import { useLocalStorage } from "@vueuse/core"
 import { v4 as uuidv4 } from 'uuid';
+import { useImagesStore } from "../store/imagesStore";
+
 
 import peopleDataRecords from './people.csv';
 
 let people
 
 export const usePeopleDataStore = defineStore('peopleData', () => {
+    const imagesStore = useImagesStore()
     const peopleData = peopleDataRecords.map((person) => {
         // Create a new object by spreading the original item
         return {
@@ -45,6 +48,7 @@ export const usePeopleDataStore = defineStore('peopleData', () => {
     const removePerson = (personToRemove) => {
         const theIndex = people.value.findIndex(l => l.id === personToRemove.id);
         if (theIndex !== -1) {
+            if (people.value[theIndex].imageId) { imagesStore.removeImage(people.value[theIndex].imageId)}            
             people.value.splice(theIndex, 1);
         }
     }

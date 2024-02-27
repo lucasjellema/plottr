@@ -3,9 +3,10 @@ import { defineStore } from 'pinia';
 import locationRecords from './locations.json';
 import { useLocalStorage } from "@vueuse/core"
 import { v4 as uuidv4 } from 'uuid';
-
+import { useImagesStore } from "../store/imagesStore";
 
 export const useLocationstore = defineStore('locationData', () => {
+    const imagesStore = useImagesStore()
     const locationData = locationRecords.locations.map(location => {
         if (!location.id) {
             return { ...location, id: uuidv4() }; // Adding a new property 'id' using spread operator
@@ -41,6 +42,7 @@ export const useLocationstore = defineStore('locationData', () => {
     const removeLocation = (locationToRemove) => {
         const theIndex = locations.value.findIndex(l => l.id === locationToRemove.id);
         if (theIndex !== -1) {
+            if (locations.value[theIndex].imageId) { imagesStore.removeImage(locations.value[theIndex].imageId)}
             locations.value.splice(theIndex, 1);
         }
     }
