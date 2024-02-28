@@ -144,10 +144,18 @@ const headers = [
   { title: "Delete", value: 'remove' },
 ]
 
-const formatDate = (timestamp) => {
-  // Format your date to a human-readable string
-  const date = new Date(timestamp);
-  return date.toLocaleDateString();
+function formatDate(timestamp) {
+  // Define an array of month names to use in the formatted string
+  const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const date = new Date(timestamp)
+  // Extract the day, month, year, and hour from the date
+  const day = date.getDate();
+  const month = months[date.getMonth()];
+  const year = date.getFullYear();
+  const hour = date.getHours();
+
+  // Construct and return the formatted string
+  return `${day} ${month} ${year}, ${hour}h `;
 }
 
 const customSort = (items, sortBy, sortDesc) => {
@@ -221,7 +229,7 @@ const handleGPSData = (event) => {
     geoJsonLayer.addData(newGeoJsonData);
     const bounds = geoJsonLayer.getBounds();
     map.value.fitBounds(bounds);
-    
+
 
   }
 }
@@ -249,7 +257,7 @@ const refreshMap = () => {
   // clear layer
 
   map.value.remove()
-drawMap()
+  drawMap()
   // // add const features = currentStory.value.sites.map(site => site.geoJSON.features[0]) to layer
   // addSitesToLayer(geoJsonLayer, currentStory.value.sites);
   // //map.value.invalidateSize();
@@ -310,8 +318,6 @@ const drawMap = () => {
     }
   }).addTo(map.value);
 
-
-
   addSitesToLayer(geoJsonLayer, currentStory.value.sites);
 }
 
@@ -322,22 +328,23 @@ const setImageURLonFeature = async (imageId) => {
 }
 
 
-const addSitesToLayer = (layer,sites) => {
+const addSitesToLayer = (layer, sites) => {
   console.log(`sites ${JSON.stringify(currentStory.value.sites)}`);
   const features = sites.map(site => site.geoJSON.features[0]);
   layer.addData({ type: "FeatureCollection", features: features });
-    const bounds = geoJsonLayer.getBounds();
-    map.value.fitBounds(bounds);
   // Zoom the map to the GeoJSON bounds
   try {
-    if (layer.getBounds()) map.value.fitBounds(layer.getBounds());
+    const bounds = geoJsonLayer.getBounds();
+    if (bounds)
+      map.value.fitBounds(bounds);
+    // if (layer.getBounds()) map.value.fitBounds(layer.getBounds());
   } catch (e) { console.warn(`map.value.fitBounds(layer.getBounds() failed`); }
 }
 
 // Function to perform reverse geocoding
 function reverseGeocode(geoJsonFeature, site) {
   //, "geometry": { "coordinates": [event.gpsInfo.longitude, event.gpsInfo.latitude], "type": "Point" }
-console.warn(`go reverse geocode`)
+  console.warn(`go reverse geocode`)
   const longitude = geoJsonFeature.geometry.coordinates[0];
   const latitude = geoJsonFeature.geometry.coordinates[1];
   const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`;
