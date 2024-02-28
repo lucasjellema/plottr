@@ -108,7 +108,8 @@ const handlePaste = async (event) => {
             // Check if the item is an image
             if (items[i].type.indexOf("image") !== -1) {
                 const file = items[i].getAsFile();
-                throttledHandleNewImageCall(file)
+                //throttledHandleNewImageCall(file)
+                handleNewImage(file)
             }
 
             // if item is a string that is a valid URL - set the imageUrl property and try to download and store that image (that will probably fail because of CORS limitations)
@@ -128,7 +129,8 @@ const handlePaste = async (event) => {
                         const response = await fetch(text);
                         if (!response.ok) throw new Error('Network response was not ok.');
                         const blob = await response.blob();
-                        throttledHandleNewImageCall(blob)
+                        //throttledHandleNewImageCall(blob)
+                        handleNewImage(blob)
                     } catch (error) {
                         console.error('Fetching and storing image failed:', error);
                     }
@@ -142,7 +144,8 @@ const handleFileUpload = async (event) => {
     for (let i = 0; i < files.length; i++) {
         const file = files[i];
         if (file && file.type.startsWith('image/')) {
-            throttledHandleNewImageCall(file)
+            //throttledHandleNewImageCall(file)
+            handleNewImage(file)
         }
     }
 }
