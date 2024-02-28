@@ -1,5 +1,7 @@
 
 export function useUtilsLibrary() {
+
+// this function ensures that a specific function call is made no more than once every limit ms. all additional calls within that period are droppped.    
     function throttle(func, limit) {
         let lastFunc;
         let lastRan;
