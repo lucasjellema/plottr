@@ -7,8 +7,10 @@
           <v-col cols="4" offset="0">
             <v-text-field v-model="search" label="Search" clearable></v-text-field>
             <v-data-table :headers="headers" :items="sitesData" :search="search" items-per-page="5" show-select
-              return-object>
-
+              :custom-sort="customSort" return-object>
+              <template v-slot:item.timestamp="{ item }">
+                {{ formatDate(item.timestamp) }}
+              </template>
               <template v-slot:item.edit="{ item }">
                 <v-btn icon @click="editItem(item)">
                   <v-icon>mdi-pencil</v-icon>
@@ -23,18 +25,63 @@
 
             <h3>Upload or paste one or multiple files</h3>
             <image-editor ref="imageEditorRef" image-height=300 image-width=400 @gps-data="handleGPSData"
-              :allowMultipleFiles=true></image-editor>
+              :allowMultipleFiles=true :fastSiteCreator="true"></image-editor>
 
           </v-col>
           <v-col cols="7" offset="1">
             <div id="mapid" style="height: 700px; width:900px"></div>
-            <v-card class="mx-auto" max-width="600" height="400" :image="poppedupFeature?.properties?.imageURL"
-              :title="poppedupFeature?.properties?.name" theme="dark" ref="popupContentRef" >
-              <v-card-text>{{ poppedupFeature?.properties?.timestamp }}</v-card-text>
-            </v-card>
+            <v-btn @click="refreshMap()">Refresh Map</v-btn>
+
+            <div style="display: none;">
+              <v-card class="mx-auto" max-width="600" height="400" :image="poppedupFeature?.properties?.imageURL"
+                :title="poppedupFeature?.properties?.name" theme="dark" ref="popupContentRef">
+
+                <v-card-text>{{ poppedupFeature?.properties?.timestamp }}
+                  {{ poppedupFeature?.properties?.city }},{{ poppedupFeature?.properties?.country }}
+                </v-card-text>
+              </v-card>
+            </div>
           </v-col>
         </v-row>
       </v-main>
+      <!-- Add/Edit Site Dialog -->
+      <v-dialog v-model="showEditSitePopup" max-width="800px">
+        <v-card>
+          <v-card-title>
+            <span class="headline">Edit Site {{ editedSite.label }}</span>
+          </v-card-title>
+          <v-card-text>
+            <v-container>
+              <v-form ref="form">
+                <v-text-field v-model="editedSite.label" label="Label" required></v-text-field>
+                <v-text-field v-model="editedSite.address" label="Address"></v-text-field>
+                <v-text-field v-model="editedSite.city" label="City"></v-text-field>
+                <v-text-field v-model="editedSite.country" label="Country"></v-text-field>
+                <v-text-field v-model="editedSite.timestamp" label="Timestamp"></v-text-field>
+                <v-select v-model="editedSite.resolution" label="Resolution"
+                  hint="How exact or roundabout is this location to be interpreted?"
+                  :items="resolutionOptions"></v-select>
+                <v-text-field v-model="editedSite.geoJSONText" label="GeoJSON"></v-text-field>
+                <a href="https://geojson.io" target="_new">Compose GeoJSON
+                  <v-icon>mdi-map</v-icon>
+                </a>
+                <v-btn v-if="imageMetadata && imageMetadata.gpsInfo && imageMetadata.gpsInfo.latitude"
+                  @click="createGeoJSONfromImageGPS" prepend-icon="mdi-web">Set GeoJSON from Image GPS</v-btn>
+
+                <image-editor :image-url="editedSite.imageUrl" :image-id="editedSite.imageId" ref="imageEditorRef"
+                  image-height=600 image-width=800 @image-change="handleImageChange"
+                  @gps-data="handleGPSData"></image-editor>
+
+              </v-form>
+            </v-container>
+          </v-card-text>
+          <v-card-actions>
+            <v-spacer></v-spacer>
+            <v-btn color="blue darken-1" text @click="closeDialog">Cancel</v-btn>
+            <v-btn color="blue darken-1" text @click="saveItem">Save</v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
     </v-container>
   </v-responsive>
 </template>
@@ -44,7 +91,10 @@
 import ImageEditor from "@/components/imageEditor.vue"
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { defineComponent, ref } from 'vue';
+import { ref } from 'vue';
+import { useUtilsLibrary } from '@/composables/useUtilsLibrary';
+
+const { throttle } = useUtilsLibrary();
 
 
 import { useImagesStore } from "@/store/imagesStore";
@@ -55,18 +105,96 @@ const currentStory = computed(() => storiesStore.currentStory)
 const sitesData = computed(() => currentStory.value.sites);
 
 const search = ref("")
-const theImageId = ref(0)
+
 const popupContentRef = ref(null)// $refs.foo.$el.innerHTML
 const poppedupFeature = ref({})
 const showPopup = ref(false)
+const showEditSitePopup = ref(false)
+const imageMetadata = ref()
+
+const closeDialog = () => {
+  showEditSitePopup.value = false;
+}
+
+const saveItem = () => {
+  editedSite.value.geoJSON = JSON.parse(editedSite.value.geoJSONText)
+  editedSite.value.geoJSON.features[0].properties.name = editedSite.value.label
+  editedSite.value.geoJSON.features[0].properties.city = editedSite.value.city
+  editedSite.value.geoJSON.features[0].properties.country = editedSite.value.country
+  storiesStore.updateSite(editedSite.value)
+  closeDialog();
+}
+
+const createGeoJSONfromImageGPS = () => {
+  editedSite.value.geoJSON =
+    { "type": "FeatureCollection", "features": [{ "type": "Feature", "properties": {}, "geometry": { "coordinates": [imageMetadata.value.gpsInfo.longitude, imageMetadata.value.gpsInfo.latitude], "type": "Point" } }] }
+  editedSite.value.geoJSONText = JSON.stringify(editedLocation.value.geoJSON)
+}
+const handleImageChange = (event) => {
+  console.log(JSON.stringify(event))
+  editedSite.value.imageId = event.imageId
+  editedSite.value.imageUrl = event.imageUrl
+}
+
 
 const headers = [
   { title: 'Label', value: 'label', sortable: true },
-  { title: 'City', value: 'city' },
+  { title: 'City', value: 'city', sortable: true },
+  { title: 'Timestamp', value: 'timestamp', sortable: true },
   { title: "Edit", value: 'edit' },
   { title: "Delete", value: 'remove' },
 ]
 
+const formatDate = (timestamp) => {
+  // Format your date to a human-readable string
+  const date = new Date(timestamp);
+  return date.toLocaleDateString();
+}
+
+const customSort = (items, sortBy, sortDesc) => {
+  const [sortKey] = sortBy;
+  const sortOrder = sortDesc[0] ? -1 : 1;
+
+  if (sortKey === 'timestamp') {
+    return items.sort((a, b) => {
+      const dateA = new Date(a.timestamp);
+      const dateB = new Date(b.timestamp);
+      return (dateA - dateB) * sortOrder;
+    });
+  }
+
+  // Fallback for other sorts or implement similarly
+  return items;
+}
+
+const resolutionOptions = [
+  { title: 'Exact Address (high accuracy)', value: 0 },
+  { title: 'City ', value: 1 },
+  { title: 'Area/State/Province ', value: 2 },
+  { title: 'Country', value: 3 },
+  { title: 'Continent', value: 4 },
+]
+
+let editedSite = ref({
+  label: '',
+  address: '',
+  city: '',
+  country: 'nl',
+  resolution: 0,
+  geoJSON: {},
+  geoJSONText: "",
+  imageUrl: '',
+  imageId: '',
+  relevance: 1, // 0 is low, 1 is normal, 2 is high, 3 is low
+  timestamp: new Date()
+})
+
+const editItem = (item) => {
+  editedSite.value = { ...item }; // Make a copy of the item to edit
+  editedSite.value.geoJSONText = JSON.stringify(editedSite.value.geoJSON)
+  //    imageMetadata.value = null
+  showEditSitePopup.value = true;
+}
 
 const imageEditorRef = ref(null)
 
@@ -88,11 +216,12 @@ const handleGPSData = (event) => {
       resolution: 0
     }
     storiesStore.addSite(site)
+    throttledReverseGeocodeApiCall(newGeoJsonData.features[0], site);
 
     geoJsonLayer.addData(newGeoJsonData);
     const bounds = geoJsonLayer.getBounds();
     map.value.fitBounds(bounds);
-    throttledReverseGeocodeApiCall(newGeoJsonData.features[0], site);
+    
 
   }
 }
@@ -115,6 +244,16 @@ onMounted(() => {
 });
 const map = ref(null)
 let geoJsonLayer
+
+const refreshMap = () => {
+  // clear layer
+
+  map.value.remove()
+drawMap()
+  // // add const features = currentStory.value.sites.map(site => site.geoJSON.features[0]) to layer
+  // addSitesToLayer(geoJsonLayer, currentStory.value.sites);
+  // //map.value.invalidateSize();
+}
 const drawMap = () => {
   // Initialize the map
   map.value = L.map('mapid').setView([51.505, -0.09], 7); // Temporary view, will adjust based on GeoJSON
@@ -124,48 +263,22 @@ const drawMap = () => {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
   }).addTo(map.value);
 
-  //    geoJsonLayer = L.geoJSON().addTo(map.value);
-
-  console.log(`sites ${JSON.stringify(currentStory.value.sites)}`)
-  const features = currentStory.value.sites.map(site => site.geoJSON.features[0])
-
-
-
-
-
-  geoJsonLayer = L.geoJSON({ type: "FeatureCollection", features: features }, {
+  geoJsonLayer = L.geoJSON(null, {
     onEachFeature: async (feature, layer) => {
-      const tooltip = `${feature.properties.name}`
+      const tooltip = `${feature.properties.name}`;
       layer.bindTooltip(tooltip, { permanent: true, className: 'my-custom-tooltip', direction: 'right' });
 
-
-      let popup = `<h1>Site: ${feature.properties.name}</h1>
-                   ${feature.properties.timestamp}
-                   
-                   `
-
-      if (feature.properties.imageId) {
-        try {
-          const url = await imagesStore.getUrlForIndexedDBImage(feature.properties.imageId)
-          popup += `<img src=${url} />`;
-        }
-        catch (e) { }
-      }
-
-      //layer.bindPopup(popup);
       layer.bindPopup((layer) => {
-        theImageId.value = feature.properties.imageId
-        poppedupFeature.value = layer.feature
-        console.log(layer.feature.properties.name)
-        if (feature.properties.imageId && !poppedupFeature.value.properties.imageURL) {
+        poppedupFeature.value = layer.feature;
+        console.log(layer.feature.properties.name);
+        if (layer.feature.properties.imageId) {
           try {
-            setImageURLonFeature(feature.properties.imageId)
+            setImageURLonFeature(layer.feature.properties.imageId);
           }
           catch (e) { }
         }
-
-        return popupContentRef.value.$el
-      })
+        return popupContentRef.value.$el;
+      });
 
 
       const mapContainer = map.value.getContainer();
@@ -198,41 +311,29 @@ const drawMap = () => {
   }).addTo(map.value);
 
 
-  // Zoom the map to the GeoJSON bounds
-  try {
-  if (geoJsonLayer.getBounds()) map.value.fitBounds(geoJsonLayer.getBounds());
-  } catch (e) { console.warn(`map.value.fitBounds(geoJsonLayer.getBounds() failed`)}
+
+  addSitesToLayer(geoJsonLayer, currentStory.value.sites);
 }
 
 const throttledReverseGeocodeApiCall = throttle(reverseGeocode, 1000);
 
-const setImageURLonFeature = async (imageId) =>{
-   const url = await imagesStore.getUrlForIndexedDBImage(imageId)
-   poppedupFeature.value.properties.imageURL = url
-}
-
-function throttle(func, limit) {
-  let lastFunc;
-  let lastRan;
-  return function () {
-    const context = this;
-    const args = arguments;
-    if (!lastRan) {
-      func.apply(context, args);
-      lastRan = Date.now();
-    } else {
-      clearTimeout(lastFunc);
-      lastFunc = setTimeout(function () {
-        if ((Date.now() - lastRan) >= limit) {
-          func.apply(context, args);
-          lastRan = Date.now();
-        }
-      }, limit - (Date.now() - lastRan));
-    }
-  }
+const setImageURLonFeature = async (imageId) => {
+  const url = await imagesStore.getUrlForIndexedDBImage(imageId)
+  poppedupFeature.value.properties.imageURL = url
 }
 
 
+const addSitesToLayer = (layer,sites) => {
+  console.log(`sites ${JSON.stringify(currentStory.value.sites)}`);
+  const features = sites.map(site => site.geoJSON.features[0]);
+  layer.addData({ type: "FeatureCollection", features: features });
+    const bounds = geoJsonLayer.getBounds();
+    map.value.fitBounds(bounds);
+  // Zoom the map to the GeoJSON bounds
+  try {
+    if (layer.getBounds()) map.value.fitBounds(layer.getBounds());
+  } catch (e) { console.warn(`map.value.fitBounds(layer.getBounds() failed`); }
+}
 
 // Function to perform reverse geocoding
 function reverseGeocode(geoJsonFeature, site) {
@@ -246,13 +347,13 @@ function reverseGeocode(geoJsonFeature, site) {
     .then(data => {
       console.log('Location details:', data);
       // Here you can extract and use the country, state, city, etc.
-      console.log(`Country: ${data.tourism}, ${data.name} ${data.address.country}, State: ${data.address.state}, City: ${data.address.city || data.address.town}`);
+      console.log(`Country: ${data.tourism}, ${data.name} ${data.address.country}, State: ${data.address.state}, City: ${data.address.village || data.address.city || data.address.town}`);
       geoJsonFeature.properties.name = data.tourism || data.name || data.address.city || data.address.town
-      geoJsonFeature.properties.city = data.address.city || data.address.town
+      geoJsonFeature.properties.city = data.village || data.address.city || data.address.town
       geoJsonFeature.properties.country = data.address.country
       site.label = data.tourism || data.name || data.address.city || data.address.town
       site.country = data.address.country
-      site.city = data.address.city || data.address.town
+      site.city = data.village || data.address.city || data.address.town
       console.log(`sites ${JSON.stringify(currentStory.value.sites)}`)
     })
     .catch(error => console.error('Error:', error));

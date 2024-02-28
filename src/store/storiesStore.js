@@ -45,7 +45,17 @@ export const useStorieStore = defineStore('storyData', () => {
         if (!currentStory.value.sites) {
             currentStory.value.sites = [];
         }
+        if (!site.id) {
+            site.id = uuidv4();
+        }
         currentStory.value.sites.push(site)
+    }
+
+    const updateSite = (site) => {
+        const theIndex = currentStory.value.sites.findIndex(l => l.id === site.id);
+        if (theIndex !== -1) {
+            currentStory.value.sites[theIndex] = site;
+        }
     }
 
     const removeSite = (site) => {
@@ -57,7 +67,7 @@ export const useStorieStore = defineStore('storyData', () => {
     }
 
     return {
-        stories, currentStory, addStory, updateStory, removeStory, setCurrentStory, addSite,removeSite
+        stories, currentStory, addStory, updateStory, removeStory, setCurrentStory, addSite,removeSite, updateSite
     };
 });
 
