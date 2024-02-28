@@ -36,7 +36,7 @@
               <v-card class="mx-auto" max-width="600" height="400" :image="poppedupFeature?.properties?.imageURL"
                 :title="poppedupFeature?.properties?.name" theme="dark" ref="popupContentRef">
 
-                <v-card-text>{{ poppedupFeature?.properties?.timestamp }}
+                <v-card-text>{{ formatDate(poppedupFeature?.properties?.timestamp) }}
                   {{ poppedupFeature?.properties?.city }},{{ poppedupFeature?.properties?.country }}
                 </v-card-text>
               </v-card>
@@ -91,7 +91,7 @@
 import ImageEditor from "@/components/imageEditor.vue"
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useFunctionCallThrottler } from '@/composables/useFunctionCallThrottler';
 const { enqueueCall: enqueueCallToReverseGeocode } = useFunctionCallThrottler(1500, reverseGeocode);
 
@@ -120,6 +120,7 @@ const saveItem = () => {
   editedSite.value.geoJSON.features[0].properties.name = editedSite.value.label
   editedSite.value.geoJSON.features[0].properties.city = editedSite.value.city
   editedSite.value.geoJSON.features[0].properties.country = editedSite.value.country
+  editedSite.value.geoJSON.features[0].properties.timestamp = editedSite.value.timestamp
   storiesStore.updateSite(editedSite.value)
   closeDialog();
 }
@@ -215,22 +216,7 @@ const handleGPSData = (event) => {
         , "geometry": { "coordinates": [event.gpsInfo.longitude, event.gpsInfo.latitude], "type": "Point" }
       }]
     }
-    const site = {
-      label: "To be geo-encoded",
-      imageId: event.imageId,
-      timestamp: event.dateTimeOriginal,
-      geoJSON: newGeoJsonData,
-      resolution: 0
-    }
-    storiesStore.addSite(site)
-    console.warn(`request reverse geo call`)
-
-    enqueueCallToReverseGeocode(newGeoJsonData.features[0], site)
-    geoJsonLayer.addData(newGeoJsonData);
-    const bounds = geoJsonLayer.getBounds();
-    map.value.fitBounds(bounds);
-
-
+    createSiteFromGeoJSON(newGeoJsonData, event.imageId, event.dateTimeOriginal);
   }
 }
 
@@ -239,7 +225,7 @@ const removeSite = (site) => {
 }
 
 
-import { onMounted } from 'vue';
+
 
 const props = defineProps({
   geoJsonPoint: Object,
@@ -254,13 +240,8 @@ const map = ref(null)
 let geoJsonLayer
 
 const refreshMap = () => {
-  // clear layer
-
   map.value.remove()
   drawMap()
-  // // add const features = currentStory.value.sites.map(site => site.geoJSON.features[0]) to layer
-  // addSitesToLayer(geoJsonLayer, currentStory.value.sites);
-  // //map.value.invalidateSize();
 }
 const drawMap = () => {
   // Initialize the map
@@ -305,8 +286,10 @@ const drawMap = () => {
           // You can access the pasted data using event.clipboardData
           // TODO handle Google Map coordinates paste - create site for those coordinates
           // TODO handle paste images - hand over to imageEditor?
-          var pastedData = event.clipboardData.getData('text');
+          const pastedData = event.clipboardData.getData('text');
+          handlePastedText(pastedData);
           console.log('Pasted content:', pastedData);
+
         });
 
         mapContainer.setAttribute('data-paste-listener-attached', 'true');
@@ -341,6 +324,23 @@ const addSitesToLayer = (layer, sites) => {
   } catch (e) { console.warn(`map.value.fitBounds(layer.getBounds() failed`); }
 }
 
+function createSiteFromGeoJSON(newGeoJsonData, imageId, dateTimeOriginal) {
+  const site = {
+    label: "To be geo-encoded",
+    imageId: imageId,
+    timestamp: dateTimeOriginal,
+    geoJSON: newGeoJsonData,
+    resolution: 0
+  };
+  storiesStore.addSite(site);
+  console.warn(`request reverse geo call`);
+
+  enqueueCallToReverseGeocode(newGeoJsonData.features[0], site);
+  geoJsonLayer.addData(newGeoJsonData);
+  const bounds = geoJsonLayer.getBounds();
+  map.value.fitBounds(bounds);
+}
+
 // Function to perform reverse geocoding
 function reverseGeocode(geoJsonFeature, site) {
   //, "geometry": { "coordinates": [event.gpsInfo.longitude, event.gpsInfo.latitude], "type": "Point" }
@@ -367,21 +367,28 @@ function reverseGeocode(geoJsonFeature, site) {
 }
 
 
-const handlePaste = async (event) => {
+function isValidCoordinateFormat(str) {
+  // Regular expression for matching coordinates with at least one decimal digit
+  const regex = /^-?\d+\.\d+, -?\d+\.\d+$/;
+  return regex.test(str);
+}
+const handlePastedText = (text) => {
+  if (isValidCoordinateFormat(text)) {
+    console.log(`looks like coordinates`)
+    const coordinates = text.split(',');
+    const longitude = parseFloat(coordinates[1]);
+    const latitude = parseFloat(coordinates[0]);
 
-  if (event.clipboardData?.items) {
-    const items = event.clipboardData.items;
-    for (let i = 0; i < items.length; i++) {
-      // Check if the item is an image
-      if (items[i].type.indexOf("image") !== -1) {
-        const file = items[i].getAsFile();
-        console.log('Pasted image:', file);
-      }
-      if (items[i].type.indexOf("text") !== -1) {
-        const text = (event.clipboardData || window.clipboardData).getData('text');
-        console.log('Pasted text:', text); // TODO check if geo coordinates, for example pasted from Google Maps
-      }
+    const newGeoJsonData =
+    {
+      "type": "FeatureCollection", "features": [{
+        "type": "Feature", "properties": { name: "Pasted coordinates",  timestamp: new Date()}
+        , "geometry": { "coordinates": [longitude, latitude], "type": "Point" }
+      }]
     }
+
+
+    createSiteFromGeoJSON(newGeoJsonData, null, new Date());
   }
 }
 
