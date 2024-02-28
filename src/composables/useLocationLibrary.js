@@ -20,5 +20,7 @@ export function useLocationLibrary() {
         }
     }
 
+    
+
     return { mapResolutionToZoom };
 }

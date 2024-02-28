@@ -11,6 +11,8 @@
 
 import { useImagesStore } from "../store/imagesStore";
 const imagesStore = useImagesStore()
+import { useUtilsLibrary } from '@/composables/useUtilsLibrary';
+const { throttle } = useUtilsLibrary();
 
 import { ref, onMounted } from 'vue';
 
@@ -19,7 +21,9 @@ const props = defineProps({
     imageUrl: String,
     imageHeight: String,
     imageWidth: String,
-    allowMultipleFiles: Boolean
+    allowMultipleFiles: Boolean,
+    fastSiteCreator: Boolean, // when the imageEditor is used in the context of the fastSiteCreator then updating the image should not delete the previous image
+
 });
 
 const imageId = ref(props.imageId)
@@ -28,6 +32,7 @@ const imageSrc = ref("")
 const imageHeight = ref(props.imageHeight)
 const imageWidth = ref(props.imageWidth)
 const isMultiple = ref(props.allowMultipleFiles)
+const isFastSiteCreator = ref(props.fastSiteCreator)
 const emit = defineEmits(['imageChange', 'gpsData'])
 
 onMounted(() => {
@@ -69,20 +74,15 @@ const displayImageFromDB = async (imageId) => {
     imageSrc.value = url
 }
 
-const handlePaste = async (event) => {
-
-    if (event.clipboardData?.items) {
-        const items = event.clipboardData.items;
-        for (let i = 0; i < items.length; i++) {
-            // Check if the item is an image
-            if (items[i].type.indexOf("image") !== -1) {
-                const file = items[i].getAsFile();
-                imagesStore.resizeImage(file, imageWidth.value, imageHeight.value, async (resizedBlob) => {
+const handleNewImage = async (file) => {                imagesStore.resizeImage(file, imageWidth.value, imageHeight.value, async (resizedBlob) => {
                     // Now you have a resized image as a Blob, you can store it in IndexedDB
                     const newImageId = await imagesStore.saveImage(resizedBlob);
                     //   editedStory.value.imageId = imageId;
                     console.log('Image stored in IndexedDB with ID:', newImageId);
-                    resetImage() // if a prior image was defined, remove it now
+                    if (!isFastSiteCreator.value) {
+                        resetImage() // if a prior image was defined, remove it now
+                        // resetImage should not be done in the fastSiteCreator
+                    }
                     imageId.value = newImageId
                     imageUrl.value = null
                     emitImageChange()
@@ -96,6 +96,19 @@ const handlePaste = async (event) => {
                     });
                     displayImageFromDB(newImageId)
                 });
+}
+
+const throttledHandleNewImageCall = throttle(handleNewImage, 500);
+
+const handlePaste = async (event) => {
+
+    if (event.clipboardData?.items) {
+        const items = event.clipboardData.items;
+        for (let i = 0; i < items.length; i++) {
+            // Check if the item is an image
+            if (items[i].type.indexOf("image") !== -1) {
+                const file = items[i].getAsFile();
+                throttledHandleNewImageCall(file)
             }
 
             // if item is a string that is a valid URL - set the imageUrl property and try to download and store that image (that will probably fail because of CORS limitations)
@@ -103,7 +116,10 @@ const handlePaste = async (event) => {
             if (items[i].type.indexOf("text") !== -1) {
                 const text = (event.clipboardData || window.clipboardData).getData('text');
                 if (isValidImageUrl(text)) { // Implement isValidImageUrl according to your needs
-                    resetImage() // if a prior image was defined, remove it now
+                    if (!isFastSiteCreator.value) {
+                        resetImage() // if a prior image was defined, remove it now
+                        // resetImage should not be done in the fastSiteCreator
+                    }
 
                     imageUrl.value = text
                     emitImageChange()
@@ -112,14 +128,7 @@ const handlePaste = async (event) => {
                         const response = await fetch(text);
                         if (!response.ok) throw new Error('Network response was not ok.');
                         const blob = await response.blob();
-                        imagesStore.resizeImage(blob, imageWidth.value, imageHeight.value, async (resizedBlob) => {
-                            const newImageId = await imagesStore.saveImage(resizedBlob);
-                            console.log('Image stored in IndexedDB with ID:', newImageId);
-                            resetImage() // if a prior image was defined, remove it now
-                            imageId.value = newImageId
-                            emitImageChange()
-                            displayImageFromDB(newImageId)
-                        });
+                        throttledHandleNewImageCall(blob)
                     } catch (error) {
                         console.error('Fetching and storing image failed:', error);
                     }
@@ -133,26 +142,7 @@ const handleFileUpload = async (event) => {
     for (let i = 0; i < files.length; i++) {
         const file = files[i];
         if (file && file.type.startsWith('image/')) {
-            imagesStore.resizeImage(file, imageWidth.value, imageHeight.value, async (resizedBlob) => {
-                // Now you have a resized image as a Blob, you can store it in IndexedDB
-                // Assuming this function stores the Blob in IndexedDB
-
-                const newImageId = await imagesStore.saveImage(resizedBlob);
-                resetImage() // if a prior image was defined, remove it now
-                imageId.value = newImageId;
-                emitImageChange()
-                console.log('Image stored in IndexedDB with ID:', newImageId);
-                imagesStore.extractEXIFData(file).then(({ dateTimeOriginal, gpsInfo }) => {
-                    console.log('Timestamp:', dateTimeOriginal);
-                    console.log('GPS Info:', gpsInfo);
-                    // Process the EXIF data as needed
-                    emitGPSData({ dateTimeOriginal, gpsInfo, imageId: newImageId })
-
-                }).catch(error => {
-                    console.warn('Error extracting EXIF data:', error);
-                });
-                displayImageFromDB(newImageId)
-            });
+            throttledHandleNewImageCall(file)
         }
     }
 }
