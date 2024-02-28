@@ -300,12 +300,36 @@ const drawMap = () => {
 
             }
           }
-          // TODO handle paste images - hand over to imageEditor?
-
         });
 
         mapContainer.setAttribute('data-paste-listener-attached', 'true');
       }
+
+
+         if (!mapContainer.getAttribute('dblclick-listener-attached')) {
+          mapContainer.addEventListener('dblclick', function (e) {
+            // Get the latitude and longitude from the event object
+
+            const latlng = map.value.mouseEventToLatLng(e)
+            const { lat, lng } = latlng;
+
+            // Create a GeoJSON Point feature for the click location
+            const geoJsonPointFeature =
+            {
+              "type": "FeatureCollection", "features": [
+                {
+                "type": "Feature", "properties": { name: "Pasted coordinates", timestamp: new Date() }
+                , "geometry": { "coordinates": [lng, lat], "type": "Point" }
+              }
+            ]
+            }
+              ;
+            console.log(`double click at location ${JSON.stringify(geoJsonPointFeature)}`)
+            createSiteFromGeoJSON(geoJsonPointFeature, null, new Date());
+           })
+        }
+        mapContainer.setAttribute('dblclick-listener-attached', 'true');
+
       // Focus the map container to ensure it can receive paste (and other keyboard) events
       // This step might be necessary depending on how you want to handle focus in your application
       mapContainer.focus();
@@ -368,11 +392,11 @@ function reverseGeocode(geoJsonFeature, site) {
       // Here you can extract and use the country, state, city, etc.
       console.log(`Country: ${data.tourism}, ${data.name} ${data.address.country}, State: ${data.address.state}, City: ${data.address.village || data.address.city || data.address.town}`);
       geoJsonFeature.properties.name = data.tourism || data.name || data.address.city || data.address.town
-      geoJsonFeature.properties.city = data.village || data.address.city || data.address.town
+      geoJsonFeature.properties.city = data.address.village || data.address.city || data.address.town
       geoJsonFeature.properties.country = data.address.country
       site.label = data.tourism || data.name || data.address.city || data.address.town
       site.country = data.address.country
-      site.city = data.village || data.address.city || data.address.town
+      site.city = data.address.village || data.address.city || data.address.town
       console.log(`sites ${JSON.stringify(currentStory.value.sites)}`)
     })
     .catch(error => console.error('Error:', error));
