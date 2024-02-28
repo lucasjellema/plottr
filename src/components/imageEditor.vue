@@ -155,7 +155,7 @@ const isValidImageUrl = (url) => {
 }
 
 defineExpose({
-    handlePaste
+    handlePaste, handleNewImage
 });
 
 

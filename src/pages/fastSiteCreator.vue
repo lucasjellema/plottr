@@ -284,11 +284,23 @@ const drawMap = () => {
           event.preventDefault();
 
           // You can access the pasted data using event.clipboardData
-          // TODO handle Google Map coordinates paste - create site for those coordinates
+          const items = event.clipboardData.items;
+          for (let i = 0; i < items.length; i++) {
+            // Check if the item is an image
+            if (items[i].type.indexOf("image") !== -1) {
+              const file = items[i].getAsFile();              
+              imageEditorRef.value.handleNewImage(file)
+            }
+
+            // if item is a string that is a valid URL - set the imageUrl property and try to download and store that image (that will probably fail because of CORS limitations)
+            // 
+            if (items[i].type.indexOf("text") !== -1) {
+              const text = (event.clipboardData || window.clipboardData).getData('text');
+              handlePastedText(text);
+
+            }
+          }
           // TODO handle paste images - hand over to imageEditor?
-          const pastedData = event.clipboardData.getData('text');
-          handlePastedText(pastedData);
-          console.log('Pasted content:', pastedData);
 
         });
 
@@ -382,7 +394,7 @@ const handlePastedText = (text) => {
     const newGeoJsonData =
     {
       "type": "FeatureCollection", "features": [{
-        "type": "Feature", "properties": { name: "Pasted coordinates",  timestamp: new Date()}
+        "type": "Feature", "properties": { name: "Pasted coordinates", timestamp: new Date() }
         , "geometry": { "coordinates": [longitude, latitude], "type": "Point" }
       }]
     }
