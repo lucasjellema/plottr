@@ -92,9 +92,8 @@ import ImageEditor from "@/components/imageEditor.vue"
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { ref } from 'vue';
-import { useUtilsLibrary } from '@/composables/useUtilsLibrary';
-
-const { throttle } = useUtilsLibrary();
+import { useFunctionCallThrottler } from '@/composables/useFunctionCallThrottler';
+const { enqueueCall: enqueueCallToReverseGeocode } = useFunctionCallThrottler(1500, reverseGeocode);
 
 
 import { useImagesStore } from "@/store/imagesStore";
@@ -216,8 +215,9 @@ const handleGPSData = (event) => {
       resolution: 0
     }
     storiesStore.addSite(site)
-    throttledReverseGeocodeApiCall(newGeoJsonData.features[0], site);
+    console.warn(`request reverse geo call`)
 
+    enqueueCallToReverseGeocode(newGeoJsonData.features[0], site)
     geoJsonLayer.addData(newGeoJsonData);
     const bounds = geoJsonLayer.getBounds();
     map.value.fitBounds(bounds);
@@ -315,7 +315,6 @@ const drawMap = () => {
   addSitesToLayer(geoJsonLayer, currentStory.value.sites);
 }
 
-const throttledReverseGeocodeApiCall = throttle(reverseGeocode, 1000);
 
 const setImageURLonFeature = async (imageId) => {
   const url = await imagesStore.getUrlForIndexedDBImage(imageId)
@@ -338,6 +337,7 @@ const addSitesToLayer = (layer,sites) => {
 // Function to perform reverse geocoding
 function reverseGeocode(geoJsonFeature, site) {
   //, "geometry": { "coordinates": [event.gpsInfo.longitude, event.gpsInfo.latitude], "type": "Point" }
+console.warn(`go reverse geocode`)
   const longitude = geoJsonFeature.geometry.coordinates[0];
   const latitude = geoJsonFeature.geometry.coordinates[1];
   const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`;
