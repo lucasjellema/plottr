@@ -292,8 +292,60 @@ const hideMarker = featureLayer => {
   const feature = featureLayer.feature;
   featureLayer.remove()
 }
+
+function findFeaturesWithin5km(targetFeature, geojsonLayer) {
+  // Array to store features within 5 km
+  let featuresWithin5km = [];
+
+  // Convert target feature's coordinates to a Leaflet LatLng object
+  let targetLatLng = L.latLng(targetFeature.geometry.coordinates[1], targetFeature.geometry.coordinates[0]);
+
+  // Iterate over each feature in the GeoJSON layer
+  geojsonLayer.eachLayer(function(layer) {
+    // do not process the target feature
+    if (!(layer.feature === targetFeature)) {
+      
+    
+    // Get the current feature's LatLng
+    let featureLatLng = L.latLng(layer.feature.geometry.coordinates[1], layer.feature.geometry.coordinates[0]);
+
+    // Calculate the distance between the target feature and the current feature
+    let distance = map.value.distance(targetLatLng, featureLatLng);
+
+    // If the distance is less than or equal to 5 km, add the feature to the array
+    if (distance <= 5000) { // Distance in meters
+      featuresWithin5km.push(layer.feature);
+    }
+  }
+  });
+
+  return featuresWithin5km;
+}
+
+const consolidateSite= (featureLayer) => {
+  // remove all sites with in the specified consolidation radius
+  // in theory all are merged into this one - however: what remains of these other sites? 
+  // add their pictures in additional attachments for the site?
+  let targetFeature = featureLayer.feature; // Assuming this is your target feature
+let nearbyFeatures = findFeaturesWithin5km(targetFeature, geoJsonLayer);
+console.log("Target feature:",  nearbyFeatures);
+console.log("Features within 5km:", nearbyFeatures);
+  //find all features in the layer that are within 5 km from the selected feature
+  // 
+}
+
 const centerMap = (e) => {
   map.value.panTo(e.latlng);
+}
+
+const geoJSONToClipboard = () => {
+  const geoJSON = geoJsonLayer.toGeoJSON()
+  //every feature should have a property called tooltip that contains the city and country and the formatted timestamp
+  geoJSON.features.forEach(feature => feature.properties.tooltip = `${feature.properties.city}, ${feature.properties.country} (${formatDate(feature.properties.timestamp)})`)
+
+  // TODO set icon (based on site type), scale (derive from relevance!), color (per day/category),    
+  // https://academy.datawrapper.de/article/177-how-to-style-your-markers-before-importing-them-to-datawrapper
+  navigator.clipboard.writeText(JSON.stringify(geoJSON));
 }
 
 watch(mapEditMode, async (newMapEditMode) => {
@@ -312,7 +364,9 @@ const drawMap = () => {
     contextmenuItems: [{
       text: 'Center map here',
       callback: centerMap
-    }]
+    },{
+      text: 'Copy GeoJSON to Clipboard',
+      callback: geoJSONToClipboard    }]
   }).setView([51.505, -0.09], 7); // Temporary view, will adjust based on GeoJSON
 
   // Add OpenStreetMap tiles
@@ -320,6 +374,58 @@ const drawMap = () => {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
   }).addTo(map.value);
 
+attachMapListeners()
+
+  geoJsonLayer = L.geoJSON(null, {
+    onEachFeature: async (feature, layer) => {
+      const tooltip = `${feature.properties.name}`;
+      layer.bindTooltip(tooltip, { permanent: true, className: 'my-custom-tooltip', direction: 'right' });
+
+      layer.bindPopup((layer) => {
+        poppedupFeature.value = layer.feature;
+        console.log(layer.feature.properties.name);
+        if (layer.feature.properties.imageId) {
+          try {
+            setImageURLonFeature(layer.feature.properties.imageId);
+          }
+          catch (e) { }
+        }
+        return popupContentRef.value.$el;
+      });
+      layer.bindContextMenu({
+        contextmenu: true,
+        contextmenuItems: [{
+          text: 'Delete Site',
+          callback: (e) => {
+            var featureLayer = e.relatedTarget;
+            deleteMarker(featureLayer);
+          }
+        }, {
+          text: 'Hide Site',
+          callback: (e) => {
+            var featureLayer = e.relatedTarget;
+            hideMarker(featureLayer);
+          }
+        }, {
+          text: 'Consolidate Site',
+          callback: (e) => {
+            var featureLayer = e.relatedTarget;
+            consolidateSite(featureLayer);
+          }
+        }]
+      });
+
+
+
+
+    }
+  }).addTo(map.value);
+
+  addSitesToLayer(geoJsonLayer, currentStory.value.sites);
+}
+
+
+const attachMapListeners = () => {
   const mapContainer = map.value.getContainer();
   // Make the map container focusable
   mapContainer.setAttribute('tabindex', '0');
@@ -377,49 +483,7 @@ const drawMap = () => {
   // This step might be necessary depending on how you want to handle focus in your application
   mapContainer.focus();
 
-
-  geoJsonLayer = L.geoJSON(null, {
-    onEachFeature: async (feature, layer) => {
-      const tooltip = `${feature.properties.name}`;
-      layer.bindTooltip(tooltip, { permanent: true, className: 'my-custom-tooltip', direction: 'right' });
-
-      layer.bindPopup((layer) => {
-        poppedupFeature.value = layer.feature;
-        console.log(layer.feature.properties.name);
-        if (layer.feature.properties.imageId) {
-          try {
-            setImageURLonFeature(layer.feature.properties.imageId);
-          }
-          catch (e) { }
-        }
-        return popupContentRef.value.$el;
-      });
-      layer.bindContextMenu({
-        contextmenu: true,
-        contextmenuItems: [{
-          text: 'Delete Site',
-          callback: (e) => {
-            var featureLayer = e.relatedTarget;
-            deleteMarker(featureLayer);
-          }
-        }, {
-          text: 'Hide Site',
-          callback: (e) => {
-            var featureLayer = e.relatedTarget;
-            hideMarker(featureLayer);
-          }
-        }]
-      });
-
-
-
-
-    }
-  }).addTo(map.value);
-
-  addSitesToLayer(geoJsonLayer, currentStory.value.sites);
 }
-
 
 const setImageURLonFeature = async (imageId) => {
   const url = await imagesStore.getUrlForIndexedDBImage(imageId)
