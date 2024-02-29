@@ -28,18 +28,38 @@
               :allowMultipleFiles=true :fastSiteCreator="true"></image-editor>
 
           </v-col>
-          <v-col cols="7" offset="1">
+          <v-col cols="7" offset="0">
             <div id="mapid" style="height: 700px; width:900px"></div>
-            <v-btn @click="refreshMap()">Refresh Map</v-btn>
-
+            <v-container>
+              <v-row align="center">
+                <v-col cols="auto">
+                  <v-btn @click="refreshMap()">Refresh Map</v-btn>
+                </v-col>
+                <v-col cols="auto">
+                  <v-switch v-model="mapEditMode" label="Edit Mode" color="secondary" hide-details inset></v-switch>
+                </v-col>
+              </v-row>
+            </v-container>
+            <!-- contents for the popup on markers -->
             <div style="display: none;">
               <v-card class="mx-auto" max-width="600" height="400" :image="poppedupFeature?.properties?.imageURL"
                 :title="poppedupFeature?.properties?.name" theme="dark" ref="popupContentRef">
 
                 <v-card-text>{{ formatDate(poppedupFeature?.properties?.timestamp) }}
                   {{ poppedupFeature?.properties?.city }},{{ poppedupFeature?.properties?.country }}
+                  <v-btn icon @click="editSiteFromPopup()" v-if="mapEditMode">
+                    <v-icon>mdi-pencil</v-icon>
+                  </v-btn>
                 </v-card-text>
               </v-card>
+            </div>
+            <!-- contents for the context menu on markers -->
+            <div id="markerContextMenu"
+              style="display: none; position: absolute; z-index: 1000; background-color: white; border: 1px solid #ccc; border-radius: 4px;">
+              <ul style="list-style: none; margin: 0; padding: 5px;">
+                <li><a href="#" id="deleteMarker">Delete</a></li>
+                <li><a href="#" id="consolidateMarker">Consolidate</a></li>
+              </ul>
             </div>
           </v-col>
         </v-row>
@@ -61,12 +81,12 @@
                 <v-select v-model="editedSite.resolution" label="Resolution"
                   hint="How exact or roundabout is this location to be interpreted?"
                   :items="resolutionOptions"></v-select>
-                <v-text-field v-model="editedSite.geoJSONText" label="GeoJSON"></v-text-field>
+                <!-- <v-text-field v-model="editedSite.geoJSONText" label="GeoJSON"></v-text-field>
                 <a href="https://geojson.io" target="_new">Compose GeoJSON
                   <v-icon>mdi-map</v-icon>
                 </a>
                 <v-btn v-if="imageMetadata && imageMetadata.gpsInfo && imageMetadata.gpsInfo.latitude"
-                  @click="createGeoJSONfromImageGPS" prepend-icon="mdi-web">Set GeoJSON from Image GPS</v-btn>
+                  @click="createGeoJSONfromImageGPS" prepend-icon="mdi-web">Set GeoJSON from Image GPS</v-btn> -->
 
                 <image-editor :image-url="editedSite.imageUrl" :image-id="editedSite.imageId" ref="imageEditorRef"
                   image-height=600 image-width=800 @image-change="handleImageChange"
@@ -91,6 +111,8 @@
 import ImageEditor from "@/components/imageEditor.vue"
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import 'leaflet-contextmenu';
+import 'leaflet-contextmenu/dist/leaflet.contextmenu.min.css';
 import { ref, onMounted } from 'vue';
 import { useFunctionCallThrottler } from '@/composables/useFunctionCallThrottler';
 const { enqueueCall: enqueueCallToReverseGeocode } = useFunctionCallThrottler(1500, reverseGeocode);
@@ -110,6 +132,7 @@ const poppedupFeature = ref({})
 const showPopup = ref(false)
 const showEditSitePopup = ref(false)
 const imageMetadata = ref()
+const mapEditMode = ref(false)
 
 const closeDialog = () => {
   showEditSitePopup.value = false;
@@ -121,6 +144,8 @@ const saveItem = () => {
   editedSite.value.geoJSON.features[0].properties.city = editedSite.value.city
   editedSite.value.geoJSON.features[0].properties.country = editedSite.value.country
   editedSite.value.geoJSON.features[0].properties.timestamp = editedSite.value.timestamp
+  editedSite.value.geoJSON.features[0].properties.imageId = editedSite.value.imageId
+
   storiesStore.updateSite(editedSite.value)
   closeDialog();
 }
@@ -203,6 +228,11 @@ const editItem = (item) => {
   //    imageMetadata.value = null
   showEditSitePopup.value = true;
 }
+const editSiteFromPopup = () => {
+  const siteId = poppedupFeature.value.properties.id
+  const siteToEdit = storiesStore.getSite(siteId)
+  editItem(siteToEdit)
+}
 
 const imageEditorRef = ref(null)
 
@@ -239,13 +269,36 @@ onMounted(() => {
 const map = ref(null)
 let geoJsonLayer
 
+
+
+
 const refreshMap = () => {
   map.value.remove()
   drawMap()
 }
+
+
+const deleteMarker = featureLayer => {
+  const feature = featureLayer.feature;
+  featureLayer.remove()
+  const site = storiesStore.getSite(feature.properties.id)
+  removeSite(site)
+}
+
+const centerMap = (e) => {
+  map.value.panTo(e.latlng);
+}
+
 const drawMap = () => {
   // Initialize the map
-  map.value = L.map('mapid').setView([51.505, -0.09], 7); // Temporary view, will adjust based on GeoJSON
+  map.value = L.map('mapid', {
+    contextmenu: true,
+    contextmenuWidth: 140,
+    contextmenuItems: [{
+      text: 'Center map here',
+      callback: centerMap
+    }]
+  }).setView([51.505, -0.09], 7); // Temporary view, will adjust based on GeoJSON
 
   // Add OpenStreetMap tiles
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -268,15 +321,24 @@ const drawMap = () => {
         }
         return popupContentRef.value.$el;
       });
+      layer.bindContextMenu({
+        contextmenu: true,
+        contextmenuItems: [{
+          text: 'Delete item',
+          callback: (e) => {
+            var featureLayer = e.relatedTarget;
+            deleteMarker(featureLayer);
+          }
+        }]
+      });
+
 
 
       const mapContainer = map.value.getContainer();
-
       // Make the map container focusable
       mapContainer.setAttribute('tabindex', '0');
 
       if (!mapContainer.getAttribute('data-paste-listener-attached')) {
-        // Attach a paste event listener to the map container
         mapContainer.addEventListener('paste', function (event) {
           // Handle the paste event
           console.log('Paste event detected!');
@@ -288,47 +350,42 @@ const drawMap = () => {
           for (let i = 0; i < items.length; i++) {
             // Check if the item is an image
             if (items[i].type.indexOf("image") !== -1) {
-              const file = items[i].getAsFile();              
+              const file = items[i].getAsFile();
               imageEditorRef.value.handleNewImage(file)
             }
-
-            // if item is a string that is a valid URL - set the imageUrl property and try to download and store that image (that will probably fail because of CORS limitations)
-            // 
             if (items[i].type.indexOf("text") !== -1) {
               const text = (event.clipboardData || window.clipboardData).getData('text');
               handlePastedText(text);
-
             }
           }
         });
-
         mapContainer.setAttribute('data-paste-listener-attached', 'true');
       }
 
 
-         if (!mapContainer.getAttribute('dblclick-listener-attached')) {
-          mapContainer.addEventListener('dblclick', function (e) {
-            // Get the latitude and longitude from the event object
-
+      if (!mapContainer.getAttribute('dblclick-listener-attached')) {
+        mapContainer.addEventListener('dblclick', function (e) {
+          if (mapEditMode.value) {
             const latlng = map.value.mouseEventToLatLng(e)
             const { lat, lng } = latlng;
-
             // Create a GeoJSON Point feature for the click location
             const geoJsonPointFeature =
             {
               "type": "FeatureCollection", "features": [
                 {
-                "type": "Feature", "properties": { name: "Pasted coordinates", timestamp: new Date() }
-                , "geometry": { "coordinates": [lng, lat], "type": "Point" }
-              }
-            ]
+                  "type": "Feature", "properties": { name: "Pasted coordinates", timestamp: new Date() }
+                  , "geometry": { "coordinates": [lng, lat], "type": "Point" }
+                }
+              ]
             }
               ;
             console.log(`double click at location ${JSON.stringify(geoJsonPointFeature)}`)
             createSiteFromGeoJSON(geoJsonPointFeature, null, new Date());
-           })
-        }
-        mapContainer.setAttribute('dblclick-listener-attached', 'true');
+          }
+        })
+
+      }
+      mapContainer.setAttribute('dblclick-listener-attached', 'true');
 
       // Focus the map container to ensure it can receive paste (and other keyboard) events
       // This step might be necessary depending on how you want to handle focus in your application
@@ -373,8 +430,10 @@ function createSiteFromGeoJSON(newGeoJsonData, imageId, dateTimeOriginal) {
 
   enqueueCallToReverseGeocode(newGeoJsonData.features[0], site);
   geoJsonLayer.addData(newGeoJsonData);
-  const bounds = geoJsonLayer.getBounds();
-  map.value.fitBounds(bounds);
+  if (!mapEditMode.value) {
+    const bounds = geoJsonLayer.getBounds();
+    map.value.fitBounds(bounds);
+  }
 }
 
 // Function to perform reverse geocoding

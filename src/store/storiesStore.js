@@ -48,6 +48,7 @@ export const useStorieStore = defineStore('storyData', () => {
         if (!site.id) {
             site.id = uuidv4();
         }
+        site.geoJSON.features[0].properties.id = site.id; // to allow the site to be found from the feature - as in the map only the feature will be available
         currentStory.value.sites.push(site)
     }
 
@@ -56,6 +57,10 @@ export const useStorieStore = defineStore('storyData', () => {
         if (theIndex !== -1) {
             currentStory.value.sites[theIndex] = site;
         }
+    }
+
+    const getSite = (siteId) => {
+        return currentStory.value.sites.find(l => l.id === siteId)
     }
 
     const removeSite = (site) => {
@@ -67,7 +72,7 @@ export const useStorieStore = defineStore('storyData', () => {
     }
 
     return {
-        stories, currentStory, addStory, updateStory, removeStory, setCurrentStory, addSite,removeSite, updateSite
+        stories, currentStory, addStory, updateStory, removeStory, setCurrentStory, addSite,removeSite, updateSite, getSite
     };
 });
 
