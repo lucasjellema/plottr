@@ -278,23 +278,27 @@ let geoJsonLayer
 const refreshMap = () => {
   map.value.remove()
   drawMap()
+  mapEditMode.value = false
 }
 
 
 const deleteMarker = featureLayer => {
-  const feature = featureLayer.feature;
-  featureLayer.remove()
+  hideMarker(featureLayer)
   const site = storiesStore.getSite(feature.properties.id)
   removeSite(site)
 }
 
+const hideMarker = featureLayer => {
+  const feature = featureLayer.feature;
+  featureLayer.remove()
+}
 const centerMap = (e) => {
   map.value.panTo(e.latlng);
 }
 
 watch(mapEditMode, async (newMapEditMode) => {
   if (newMapEditMode) {
-    map.value.doubleClickZoom.disable(); 
+    map.value.doubleClickZoom.disable();
   } else {
     map.value.doubleClickZoom.enable();
   }
@@ -315,6 +319,64 @@ const drawMap = () => {
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
   }).addTo(map.value);
+
+  const mapContainer = map.value.getContainer();
+  // Make the map container focusable
+  mapContainer.setAttribute('tabindex', '0');
+
+  if (!mapContainer.getAttribute('data-paste-listener-attached')) {
+    mapContainer.addEventListener('paste', function (event) {
+      // Handle the paste event
+      console.log('Paste event detected!');
+      event.stopPropagation();
+      event.preventDefault();
+
+      // You can access the pasted data using event.clipboardData
+      const items = event.clipboardData.items;
+      for (let i = 0; i < items.length; i++) {
+        // Check if the item is an image
+        if (items[i].type.indexOf("image") !== -1) {
+          const file = items[i].getAsFile();
+          imageEditorRef.value.handleNewImage(file)
+        }
+        if (items[i].type.indexOf("text") !== -1) {
+          const text = (event.clipboardData || window.clipboardData).getData('text');
+          handlePastedText(text);
+        }
+      }
+    });
+    mapContainer.setAttribute('data-paste-listener-attached', 'true');
+  }
+
+
+  if (!mapContainer.getAttribute('dblclick-listener-attached')) {
+    mapContainer.addEventListener('dblclick', function (e) {
+      if (mapEditMode.value) {
+        const latlng = map.value.mouseEventToLatLng(e)
+        const { lat, lng } = latlng;
+        // Create a GeoJSON Point feature for the click location
+        const geoJsonPointFeature =
+        {
+          "type": "FeatureCollection", "features": [
+            {
+              "type": "Feature", "properties": { name: "Pasted coordinates", timestamp: new Date() }
+              , "geometry": { "coordinates": [lng, lat], "type": "Point" }
+            }
+          ]
+        }
+          ;
+        console.log(`double click at location ${JSON.stringify(geoJsonPointFeature)}`)
+        createSiteFromGeoJSON(geoJsonPointFeature, null, new Date());
+      }
+    })
+
+  }
+  mapContainer.setAttribute('dblclick-listener-attached', 'true');
+
+  // Focus the map container to ensure it can receive paste (and other keyboard) events
+  // This step might be necessary depending on how you want to handle focus in your application
+  mapContainer.focus();
+
 
   geoJsonLayer = L.geoJSON(null, {
     onEachFeature: async (feature, layer) => {
@@ -340,67 +402,17 @@ const drawMap = () => {
             var featureLayer = e.relatedTarget;
             deleteMarker(featureLayer);
           }
+        }, {
+          text: 'Hide Site',
+          callback: (e) => {
+            var featureLayer = e.relatedTarget;
+            hideMarker(featureLayer);
+          }
         }]
       });
 
 
 
-      const mapContainer = map.value.getContainer();
-      // Make the map container focusable
-      mapContainer.setAttribute('tabindex', '0');
-
-      if (!mapContainer.getAttribute('data-paste-listener-attached')) {
-        mapContainer.addEventListener('paste', function (event) {
-          // Handle the paste event
-          console.log('Paste event detected!');
-          event.stopPropagation();
-          event.preventDefault();
-
-          // You can access the pasted data using event.clipboardData
-          const items = event.clipboardData.items;
-          for (let i = 0; i < items.length; i++) {
-            // Check if the item is an image
-            if (items[i].type.indexOf("image") !== -1) {
-              const file = items[i].getAsFile();
-              imageEditorRef.value.handleNewImage(file)
-            }
-            if (items[i].type.indexOf("text") !== -1) {
-              const text = (event.clipboardData || window.clipboardData).getData('text');
-              handlePastedText(text);
-            }
-          }
-        });
-        mapContainer.setAttribute('data-paste-listener-attached', 'true');
-      }
-
-
-      if (!mapContainer.getAttribute('dblclick-listener-attached')) {
-        mapContainer.addEventListener('dblclick', function (e) {
-          if (mapEditMode.value) {
-            const latlng = map.value.mouseEventToLatLng(e)
-            const { lat, lng } = latlng;
-            // Create a GeoJSON Point feature for the click location
-            const geoJsonPointFeature =
-            {
-              "type": "FeatureCollection", "features": [
-                {
-                  "type": "Feature", "properties": { name: "Pasted coordinates", timestamp: new Date() }
-                  , "geometry": { "coordinates": [lng, lat], "type": "Point" }
-                }
-              ]
-            }
-              ;
-            console.log(`double click at location ${JSON.stringify(geoJsonPointFeature)}`)
-            createSiteFromGeoJSON(geoJsonPointFeature, null, new Date());
-          }
-        })
-
-      }
-      mapContainer.setAttribute('dblclick-listener-attached', 'true');
-
-      // Focus the map container to ensure it can receive paste (and other keyboard) events
-      // This step might be necessary depending on how you want to handle focus in your application
-      mapContainer.focus();
 
     }
   }).addTo(map.value);
