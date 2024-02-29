@@ -289,6 +289,14 @@ const centerMap = (e) => {
   map.value.panTo(e.latlng);
 }
 
+watch(mapEditMode, async (newMapEditMode) => {
+  if (newMapEditMode) {
+    map.value.doubleClickZoom.disable(); 
+  } else {
+    map.value.doubleClickZoom.enable();
+  }
+})
+
 const drawMap = () => {
   // Initialize the map
   map.value = L.map('mapid', {
