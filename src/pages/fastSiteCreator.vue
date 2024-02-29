@@ -114,6 +114,9 @@ import 'leaflet/dist/leaflet.css';
 import 'leaflet-contextmenu';
 import 'leaflet-contextmenu/dist/leaflet.contextmenu.min.css';
 import { ref, onMounted } from 'vue';
+import { useLocationLibrary } from '@/composables/useLocationLibrary';
+
+const { mapZoomToResolution } = useLocationLibrary();
 import { useFunctionCallThrottler } from '@/composables/useFunctionCallThrottler';
 const { enqueueCall: enqueueCallToReverseGeocode } = useFunctionCallThrottler(1500, reverseGeocode);
 
@@ -332,7 +335,7 @@ const drawMap = () => {
       layer.bindContextMenu({
         contextmenu: true,
         contextmenuItems: [{
-          text: 'Delete item',
+          text: 'Delete Site',
           callback: (e) => {
             var featureLayer = e.relatedTarget;
             deleteMarker(featureLayer);
@@ -431,8 +434,9 @@ function createSiteFromGeoJSON(newGeoJsonData, imageId, dateTimeOriginal) {
     imageId: imageId,
     timestamp: dateTimeOriginal,
     geoJSON: newGeoJsonData,
-    resolution: 0
+    resolution: mapZoomToResolution(map.value.getZoom())
   };
+  console.log(site.resolution)
   storiesStore.addSite(site);
   console.warn(`request reverse geo call`);
 

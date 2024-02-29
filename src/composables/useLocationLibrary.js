@@ -1,5 +1,6 @@
 
 export function useLocationLibrary() {
+
     // Function to map resolution to zoom level
     function mapResolutionToZoom(resolution) {
         switch (resolution) {
@@ -20,7 +21,20 @@ export function useLocationLibrary() {
         }
     }
 
-    
 
-    return { mapResolutionToZoom };
+    function mapZoomToResolution(zoom) {
+        let resolution = 0
+        if (zoom < 3) {
+            resolution = 4
+        } else if (zoom < 7) {
+                resolution = 3
+            } else if (zoom < 9) {
+                    resolution = 2
+                } else if (zoom < 15) {
+                        resolution = 1
+                    } 
+                    return resolution
+    }
+
+    return { mapResolutionToZoom, mapZoomToResolution };
 }
