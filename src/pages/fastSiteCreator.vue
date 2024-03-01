@@ -397,12 +397,12 @@ watch(mapEditMode, async (newMapEditMode) => {
         var newLatLng = marker.getLatLng();
         // Update the GeoJSON feature with the new coordinates
         const geoJsonFeature = marker.feature
+
         geoJsonFeature.geometry.coordinates = [newLatLng.lng, newLatLng.lat];
         // now update site as well
-
         const site = storiesStore.getSite(marker.feature.properties.id)
-        site.geoJSON = geoJsonFeature
-        site.geoJSONText = JSON.stringify(geoJsonFeature)
+        site.geoJSON.features[0].geometry.coordinates = [newLatLng.lng, newLatLng.lat]
+        site.geoJSONText = JSON.stringify(site.geoJSON)
         storiesStore.updateSite(site)
         console.log(newLatLng); // New coordinates
         enqueueCallToReverseGeocode(geoJsonFeature, site);
@@ -561,9 +561,13 @@ const setImageURLonFeature = async (imageId) => {
 
 
 const addSitesToLayer = (layer, sites) => {
+  try {
 
   const features = sites.map(site => site.geoJSON.features[0]);
   layer.addData({ type: "FeatureCollection", features: features });
+  } catch (e) {
+    console.warn(`adding daata to layer failed`,e);
+  }
   // Zoom the map to the GeoJSON bounds
   try {
     const bounds = geoJsonLayer.getBounds();
@@ -613,7 +617,7 @@ function reverseGeocode(geoJsonFeature, site) {
       site.label = data.tourism || data.name || data.address.city || data.address.town
       site.country = data.address.country
       site.city = data.address.village || data.address.city || data.address.town
-      console.log(`sites ${JSON.stringify(currentStory.value.sites)}`)
+     // console.log(`sites ${JSON.stringify(currentStory.value.sites)}`)
     })
     .catch(error => console.error('Error:', error));
 }
@@ -624,8 +628,60 @@ function isValidCoordinateFormat(str) {
   const regex = /^-?\d+\.\d+, -?\d+\.\d+$/;
   return regex.test(str);
 }
+
+
+
+function isValidGeoJSON(str) {
+  try {
+    // Step 1: Attempt to parse the string as JSON
+    const obj = JSON.parse(str);
+
+    // Step 2: Verify that the parsed object adheres to the GeoJSON specification
+    // Check for the existence of a "type" property
+    if (!obj.type) {
+      return false;
+    }
+
+    // Check if the "type" is one of the valid GeoJSON types
+    const validTypes = ["FeatureCollection", "Feature", "Point", "LineString", "Polygon", "MultiPoint", "MultiLineString", "MultiPolygon", "GeometryCollection"];
+    if (!validTypes.includes(obj.type)) {
+      return false;
+    }
+
+    // Further checks can be added here based on the GeoJSON specification requirements
+    // for each type, such as checking for the existence and validity of the "features" array
+    // in a FeatureCollection, the "geometry" object in a Feature, etc.
+
+    // If the checks pass, the object is likely valid GeoJSON
+    return true;
+  } catch (e) {
+    // The string could not be parsed as JSON
+    return false;
+  }
+}
+
 const handlePastedText = (text) => {
-  if (isValidCoordinateFormat(text)) {
+// handle pasted geojson
+if (isValidGeoJSON(text)) {
+  console.log(`looks like valid geojson`)
+  // process all features of type point in text
+  const geoJsonData = JSON.parse(text);
+  for (const feature of geoJsonData.features) {
+    if (feature.geometry.type === 'Point') {
+
+      const newGeoJsonData =
+    {
+      "type": "FeatureCollection", "features": [feature]
+    }
+
+
+    createSiteFromGeoJSON(newGeoJsonData, null, new Date());
+    }
+  }
+    
+}
+
+ else if (isValidCoordinateFormat(text)) {
     console.log(`looks like coordinates`)
     const coordinates = text.split(',');
     const longitude = parseFloat(coordinates[1]);
