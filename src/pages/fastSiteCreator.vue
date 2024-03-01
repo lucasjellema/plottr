@@ -308,6 +308,8 @@ const hideMarker = marker => {
 
 function findFeaturesWithinConsolidationRadius(targetFeature, geojsonLayer) {
   // Array to store features within consolidation radius
+  console.log(`finding features within ${consolidationRadius.value} km from ${targetFeature.properties.id} at ${targetFeature.geometry.coordinates[0]}, ${targetFeature.geometry.coordinates[1]}`)
+
   const consolidationRangeInMeters = 1000 * consolidationRadius.value
   let featuresWithinRadius = [];
 
@@ -315,20 +317,21 @@ function findFeaturesWithinConsolidationRadius(targetFeature, geojsonLayer) {
   let targetLatLng = L.latLng(targetFeature.geometry.coordinates[1], targetFeature.geometry.coordinates[0]);
 
   // Iterate over each feature in the GeoJSON layer
-  geojsonLayer.eachLayer(function (layer) {
+  geojsonLayer.eachLayer(function (marker) {
     // do not process the target feature
-    if (!(layer.feature === targetFeature)) {
+    if (marker.feature === targetFeature) { } else {
 
 
       // Get the current feature's LatLng
-      let featureLatLng = L.latLng(layer.feature.geometry.coordinates[1], layer.feature.geometry.coordinates[0]);
+      let featureLatLng = L.latLng(marker.feature.geometry.coordinates[1], marker.feature.geometry.coordinates[0]);
 
       // Calculate the distance between the target feature and the current feature
       let distance = map.value.distance(targetLatLng, featureLatLng);
 
       // If the distance is less than or equal to consolidation radius, add the feature to the array
       if (distance <= consolidationRangeInMeters) { // Distance in meters
-        featuresWithinRadius.push(layer);
+        featuresWithinRadius.push(marker);
+        console.log(`-- found ${marker.feature.properties.id}`)
       }
     }
   });
@@ -336,25 +339,35 @@ function findFeaturesWithinConsolidationRadius(targetFeature, geojsonLayer) {
   return featuresWithinRadius;
 }
 
-const consolidateSite = (featureLayer) => {
+const consolidateSite = (marker) => {
   // remove all sites with in the specified consolidation radius
   // in theory all are merged into this one - however: what remains of these other sites? 
   // add their pictures in additional attachments for the site?
-  let targetFeature = featureLayer.feature; // Assuming this is your target feature
+  let targetFeature = marker.feature;
   let nearbyFeatures = findFeaturesWithinConsolidationRadius(targetFeature, geoJsonLayer);
-
+  let removedFeatures = []
   // Remove all nearby sites
   // TODO: retain something from the original site in the consolidation center ??
   nearbyFeatures.forEach(function (feature) {
-    deleteMarker(feature)
+    removedFeatures.push(feature)
+    if (mapEditMode.value)
+      deleteMarker(feature)
+    else hideMarker(feature)
+
   });
+  return removedFeatures
 }
+
 
 const consolidateAllSites = () => {
   // loop over all markers/sites and consolidate each  
   // note: after a consolidation, sites may have been removed from the layer
+  const recentlyRemovedMarkers = []
   geoJsonLayer.eachLayer(function (marker) {
-    consolidateSite(marker);
+    if (!recentlyRemovedMarkers.includes(marker)) {
+      const removedFeatures = consolidateSite(marker);
+      recentlyRemovedMarkers.push(...removedFeatures)
+    }
   });
 
 }
@@ -563,10 +576,10 @@ const setImageURLonFeature = async (imageId) => {
 const addSitesToLayer = (layer, sites) => {
   try {
 
-  const features = sites.map(site => site.geoJSON.features[0]);
-  layer.addData({ type: "FeatureCollection", features: features });
+    const features = sites.map(site => site.geoJSON.features[0]);
+    layer.addData({ type: "FeatureCollection", features: features });
   } catch (e) {
-    console.warn(`adding daata to layer failed`,e);
+    console.warn(`adding daata to layer failed`, e);
   }
   // Zoom the map to the GeoJSON bounds
   try {
@@ -617,7 +630,7 @@ function reverseGeocode(geoJsonFeature, site) {
       site.label = data.tourism || data.name || data.address.city || data.address.town
       site.country = data.address.country
       site.city = data.address.village || data.address.city || data.address.town
-     // console.log(`sites ${JSON.stringify(currentStory.value.sites)}`)
+      // console.log(`sites ${JSON.stringify(currentStory.value.sites)}`)
     })
     .catch(error => console.error('Error:', error));
 }
@@ -661,27 +674,27 @@ function isValidGeoJSON(str) {
 }
 
 const handlePastedText = (text) => {
-// handle pasted geojson
-if (isValidGeoJSON(text)) {
-  console.log(`looks like valid geojson`)
-  // process all features of type point in text
-  const geoJsonData = JSON.parse(text);
-  for (const feature of geoJsonData.features) {
-    if (feature.geometry.type === 'Point') {
+  // handle pasted geojson
+  if (isValidGeoJSON(text)) {
+    console.log(`looks like valid geojson`)
+    // process all features of type point in text
+    const geoJsonData = JSON.parse(text);
+    for (const feature of geoJsonData.features) {
+      if (feature.geometry.type === 'Point') {
 
-      const newGeoJsonData =
-    {
-      "type": "FeatureCollection", "features": [feature]
+        const newGeoJsonData =
+        {
+          "type": "FeatureCollection", "features": [feature]
+        }
+
+
+        createSiteFromGeoJSON(newGeoJsonData, null, new Date());
+      }
     }
 
-
-    createSiteFromGeoJSON(newGeoJsonData, null, new Date());
-    }
   }
-    
-}
 
- else if (isValidCoordinateFormat(text)) {
+  else if (isValidCoordinateFormat(text)) {
     console.log(`looks like coordinates`)
     const coordinates = text.split(',');
     const longitude = parseFloat(coordinates[1]);
