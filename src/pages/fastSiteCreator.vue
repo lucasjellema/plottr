@@ -122,6 +122,10 @@ import 'leaflet-contextmenu/dist/leaflet.contextmenu.min.css';
 import { ref, onMounted } from 'vue';
 import { useLocationLibrary } from '@/composables/useLocationLibrary';
 
+import 'leaflet.markercluster/dist/MarkerCluster.css';
+import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
+import { MarkerClusterGroup } from 'leaflet.markercluster';
+
 const { mapZoomToResolution } = useLocationLibrary();
 import { useFunctionCallThrottler } from '@/composables/useFunctionCallThrottler';
 const { enqueueCall: enqueueCallToReverseGeocode } = useFunctionCallThrottler(1500, reverseGeocode);
@@ -501,9 +505,13 @@ const drawMap = () => {
 
 
     }
-  }).addTo(map.value);
-
+  }) // .addTo(map.value);
   addSitesToLayer(geoJsonLayer, currentStory.value.sites);
+  const markers = L.markerClusterGroup();
+  markers.addLayer(geoJsonLayer);
+
+  map.value.addLayer(markers);
+
 }
 
 
