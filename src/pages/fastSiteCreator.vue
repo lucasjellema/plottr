@@ -343,10 +343,19 @@ const consolidateSite = (featureLayer) => {
   let nearbyFeatures = findFeaturesWithinConsolidationRadius(targetFeature, geoJsonLayer);
 
   // Remove all nearby sites
-  // TODO: some retain something from the original site in the consolidation center ??
+  // TODO: retain something from the original site in the consolidation center ??
   nearbyFeatures.forEach(function (feature) {
     deleteMarker(feature)
   });
+}
+
+const consolidateAllSites = () => {
+// loop over all markers/sites and consolidate each  
+// note: after a consolidation, sites may have been removed from the layer
+  geoJsonLayer.eachLayer(function (marker) {
+    consolidateSite(marker);
+  });
+
 }
 
 const centerMap = (e) => {
@@ -400,6 +409,9 @@ const drawMap = () => {
     }, {
       text: 'Copy Map as Image to Clipboard',
       callback: mapImageToClipboard
+    }, {
+      text: 'Consolidate All Sites',
+      callback: consolidateAllSites
     }]
   }).setView([51.505, -0.09], 7); // Temporary view, will adjust based on GeoJSON
 
@@ -526,7 +538,7 @@ const setImageURLonFeature = async (imageId) => {
 
 
 const addSitesToLayer = (layer, sites) => {
-  console.log(`sites ${JSON.stringify(currentStory.value.sites)}`);
+  
   const features = sites.map(site => site.geoJSON.features[0]);
   layer.addData({ type: "FeatureCollection", features: features });
   // Zoom the map to the GeoJSON bounds
