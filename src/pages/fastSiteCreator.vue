@@ -108,6 +108,7 @@
 
 
 <script setup>
+import domtoimage from 'dom-to-image-more';
 import ImageEditor from "@/components/imageEditor.vue"
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -301,35 +302,35 @@ function findFeaturesWithin5km(targetFeature, geojsonLayer) {
   let targetLatLng = L.latLng(targetFeature.geometry.coordinates[1], targetFeature.geometry.coordinates[0]);
 
   // Iterate over each feature in the GeoJSON layer
-  geojsonLayer.eachLayer(function(layer) {
+  geojsonLayer.eachLayer(function (layer) {
     // do not process the target feature
     if (!(layer.feature === targetFeature)) {
-      
-    
-    // Get the current feature's LatLng
-    let featureLatLng = L.latLng(layer.feature.geometry.coordinates[1], layer.feature.geometry.coordinates[0]);
 
-    // Calculate the distance between the target feature and the current feature
-    let distance = map.value.distance(targetLatLng, featureLatLng);
 
-    // If the distance is less than or equal to 5 km, add the feature to the array
-    if (distance <= 5000) { // Distance in meters
-      featuresWithin5km.push(layer.feature);
+      // Get the current feature's LatLng
+      let featureLatLng = L.latLng(layer.feature.geometry.coordinates[1], layer.feature.geometry.coordinates[0]);
+
+      // Calculate the distance between the target feature and the current feature
+      let distance = map.value.distance(targetLatLng, featureLatLng);
+
+      // If the distance is less than or equal to 5 km, add the feature to the array
+      if (distance <= 5000) { // Distance in meters
+        featuresWithin5km.push(layer.feature);
+      }
     }
-  }
   });
 
   return featuresWithin5km;
 }
 
-const consolidateSite= (featureLayer) => {
+const consolidateSite = (featureLayer) => {
   // remove all sites with in the specified consolidation radius
   // in theory all are merged into this one - however: what remains of these other sites? 
   // add their pictures in additional attachments for the site?
   let targetFeature = featureLayer.feature; // Assuming this is your target feature
-let nearbyFeatures = findFeaturesWithin5km(targetFeature, geoJsonLayer);
-console.log("Target feature:",  nearbyFeatures);
-console.log("Features within 5km:", nearbyFeatures);
+  let nearbyFeatures = findFeaturesWithin5km(targetFeature, geoJsonLayer);
+  console.log("Target feature:", nearbyFeatures);
+  console.log("Features within 5km:", nearbyFeatures);
   //find all features in the layer that are within 5 km from the selected feature
   // 
 }
@@ -348,6 +349,21 @@ const geoJSONToClipboard = () => {
   navigator.clipboard.writeText(JSON.stringify(geoJSON));
 }
 
+const mapImageToClipboard = async () => {
+  const mapElement = document.querySelector("#mapid")
+  const { width, height } = mapElement.getBoundingClientRect();
+  const blob = await domtoimage.toBlob(mapElement, { width, height })
+  const item = new ClipboardItem({ "image/png": blob });
+        navigator.clipboard.write([item]).then(() => {
+            console.log("Image copied to clipboard");
+        }).catch(err => {
+            console.error("Error copying image to clipboard", err);
+            // Fallback method: display the image for manual copying or saving
+            const imgURL = URL.createObjectURL(blob);
+            window.open(imgURL, '_blank').focus();
+        });
+}
+
 watch(mapEditMode, async (newMapEditMode) => {
   if (newMapEditMode) {
     map.value.doubleClickZoom.disable();
@@ -364,9 +380,13 @@ const drawMap = () => {
     contextmenuItems: [{
       text: 'Center map here',
       callback: centerMap
-    },{
+    }, {
       text: 'Copy GeoJSON to Clipboard',
-      callback: geoJSONToClipboard    }]
+      callback: geoJSONToClipboard
+    }, {
+      text: 'Copy Map as Image to Clipboard',
+      callback: mapImageToClipboard
+    }]
   }).setView([51.505, -0.09], 7); // Temporary view, will adjust based on GeoJSON
 
   // Add OpenStreetMap tiles
@@ -374,7 +394,7 @@ const drawMap = () => {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
   }).addTo(map.value);
 
-attachMapListeners()
+  attachMapListeners()
 
   geoJsonLayer = L.geoJSON(null, {
     onEachFeature: async (feature, layer) => {
