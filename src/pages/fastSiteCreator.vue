@@ -38,6 +38,10 @@
                 <v-col cols="auto">
                   <v-switch v-model="mapEditMode" label="Edit Mode" color="secondary" hide-details inset></v-switch>
                 </v-col>
+                <v-col cols="auto">
+                  <!-- an input element to set the consolidation radius in km -->
+                  <v-text-field v-model="consolidationRadius" label="Consolidation Radius (km)" type="number"></v-text-field>
+                </v-col>
               </v-row>
             </v-container>
             <!-- contents for the popup on markers -->
@@ -53,14 +57,14 @@
                 </v-card-text>
               </v-card>
             </div>
-            <!-- contents for the context menu on markers -->
+            <!-- contents for the context menu on markers
             <div id="markerContextMenu"
               style="display: none; position: absolute; z-index: 1000; background-color: white; border: 1px solid #ccc; border-radius: 4px;">
               <ul style="list-style: none; margin: 0; padding: 5px;">
                 <li><a href="#" id="deleteMarker">Delete</a></li>
-                <li><a href="#" id="consolidateMarker">Consolidate</a></li>
+                <li><a href="#" id="consolidateMarker">Consolidate ({{ consolidationRadius }} km)</a></li>
               </ul>
-            </div>
+            </div> -->
           </v-col>
         </v-row>
       </v-main>
@@ -137,6 +141,7 @@ const showPopup = ref(false)
 const showEditSitePopup = ref(false)
 const imageMetadata = ref()
 const mapEditMode = ref(false)
+const consolidationRadius = ref(2)
 
 const closeDialog = () => {
   showEditSitePopup.value = false;
@@ -289,20 +294,21 @@ const refreshMap = () => {
 }
 
 
-const deleteMarker = featureLayer => {
-  hideMarker(featureLayer)
+const deleteMarker = marker => {
+  hideMarker(marker)
+  const feature = marker.feature;
   const site = storiesStore.getSite(feature.properties.id)
   removeSite(site)
 }
 
-const hideMarker = featureLayer => {
-  const feature = featureLayer.feature;
-  featureLayer.remove()
+const hideMarker = marker => {
+  marker.remove()
 }
 
-function findFeaturesWithin5km(targetFeature, geojsonLayer) {
-  // Array to store features within 5 km
-  let featuresWithin5km = [];
+function findFeaturesWithinConsolidationRadius(targetFeature, geojsonLayer) {
+  // Array to store features within consolidation radius
+const consolidationRangeInMeters = 1000 * consolidationRadius.value
+  let featuresWithinRadius = [];
 
   // Convert target feature's coordinates to a Leaflet LatLng object
   let targetLatLng = L.latLng(targetFeature.geometry.coordinates[1], targetFeature.geometry.coordinates[0]);
@@ -319,14 +325,14 @@ function findFeaturesWithin5km(targetFeature, geojsonLayer) {
       // Calculate the distance between the target feature and the current feature
       let distance = map.value.distance(targetLatLng, featureLatLng);
 
-      // If the distance is less than or equal to 5 km, add the feature to the array
-      if (distance <= 5000) { // Distance in meters
-        featuresWithin5km.push(layer.feature);
+      // If the distance is less than or equal to consolidation radius, add the feature to the array
+      if (distance <= consolidationRangeInMeters ) { // Distance in meters
+        featuresWithinRadius.push(layer);
       }
     }
   });
 
-  return featuresWithin5km;
+  return featuresWithinRadius;
 }
 
 const consolidateSite = (featureLayer) => {
@@ -334,11 +340,13 @@ const consolidateSite = (featureLayer) => {
   // in theory all are merged into this one - however: what remains of these other sites? 
   // add their pictures in additional attachments for the site?
   let targetFeature = featureLayer.feature; // Assuming this is your target feature
-  let nearbyFeatures = findFeaturesWithin5km(targetFeature, geoJsonLayer);
-  console.log("Target feature:", nearbyFeatures);
-  console.log("Features within 5km:", nearbyFeatures);
-  //find all features in the layer that are within 5 km from the selected feature
-  // 
+  let nearbyFeatures = findFeaturesWithinConsolidationRadius(targetFeature, geoJsonLayer);
+
+  // Remove all nearby sites
+  // TODO: some retain something from the original site in the consolidation center ??
+  nearbyFeatures.forEach(function (feature) {
+    deleteMarker(feature)
+  });
 }
 
 const centerMap = (e) => {
