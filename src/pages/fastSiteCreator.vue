@@ -40,7 +40,8 @@
                 </v-col>
                 <v-col cols="auto">
                   <!-- an input element to set the consolidation radius in km -->
-                  <v-text-field v-model="consolidationRadius" label="Consolidation Radius (km)" type="number"></v-text-field>
+                  <v-text-field v-model="consolidationRadius" label="Consolidation Radius (km)"
+                    type="number"></v-text-field>
                 </v-col>
               </v-row>
             </v-container>
@@ -307,7 +308,7 @@ const hideMarker = marker => {
 
 function findFeaturesWithinConsolidationRadius(targetFeature, geojsonLayer) {
   // Array to store features within consolidation radius
-const consolidationRangeInMeters = 1000 * consolidationRadius.value
+  const consolidationRangeInMeters = 1000 * consolidationRadius.value
   let featuresWithinRadius = [];
 
   // Convert target feature's coordinates to a Leaflet LatLng object
@@ -326,7 +327,7 @@ const consolidationRangeInMeters = 1000 * consolidationRadius.value
       let distance = map.value.distance(targetLatLng, featureLatLng);
 
       // If the distance is less than or equal to consolidation radius, add the feature to the array
-      if (distance <= consolidationRangeInMeters ) { // Distance in meters
+      if (distance <= consolidationRangeInMeters) { // Distance in meters
         featuresWithinRadius.push(layer);
       }
     }
@@ -350,8 +351,8 @@ const consolidateSite = (featureLayer) => {
 }
 
 const consolidateAllSites = () => {
-// loop over all markers/sites and consolidate each  
-// note: after a consolidation, sites may have been removed from the layer
+  // loop over all markers/sites and consolidate each  
+  // note: after a consolidation, sites may have been removed from the layer
   geoJsonLayer.eachLayer(function (marker) {
     consolidateSite(marker);
   });
@@ -390,8 +391,29 @@ const mapImageToClipboard = async () => {
 watch(mapEditMode, async (newMapEditMode) => {
   if (newMapEditMode) {
     map.value.doubleClickZoom.disable();
+    geoJsonLayer.eachLayer(function (marker) {
+      marker.dragging.enable();
+      marker.on('dragend', function (e) {
+        var newLatLng = marker.getLatLng();
+        // Update the GeoJSON feature with the new coordinates
+        const geoJsonFeature = marker.feature
+        geoJsonFeature.geometry.coordinates = [newLatLng.lng, newLatLng.lat];
+        // now update site as well
+
+        const site = storiesStore.getSite(marker.feature.properties.id)
+        site.geoJSON = geoJsonFeature
+        site.geoJSONText = JSON.stringify(geoJsonFeature)
+        storiesStore.updateSite(site)
+        console.log(newLatLng); // New coordinates
+        enqueueCallToReverseGeocode(geoJsonFeature, site);
+      });
+    });
+
   } else {
     map.value.doubleClickZoom.enable();
+    geoJsonLayer.eachLayer(function (marker) {
+      marker.dragging.disable();
+    });
   }
 })
 
@@ -423,6 +445,7 @@ const drawMap = () => {
   attachMapListeners()
 
   geoJsonLayer = L.geoJSON(null, {
+    draggable: true,
     onEachFeature: async (feature, layer) => {
       const tooltip = `${feature.properties.name}`;
       layer.bindTooltip(tooltip, { permanent: true, className: 'my-custom-tooltip', direction: 'right' });
@@ -538,7 +561,7 @@ const setImageURLonFeature = async (imageId) => {
 
 
 const addSitesToLayer = (layer, sites) => {
-  
+
   const features = sites.map(site => site.geoJSON.features[0]);
   layer.addData({ type: "FeatureCollection", features: features });
   // Zoom the map to the GeoJSON bounds
