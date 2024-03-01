@@ -255,6 +255,12 @@ const handleGPSData = (event) => {
 }
 
 const removeSite = (site) => {
+  geoJsonLayer.eachLayer(function (layer) {
+    // Check if this layer's feature has the property 'id' equal to 87
+    if (layer.feature.properties.id === site.id) {
+      geoJsonLayer.removeLayer(layer);
+    }
+  });
   storiesStore.removeSite(site)
 }
 
@@ -354,14 +360,14 @@ const mapImageToClipboard = async () => {
   const { width, height } = mapElement.getBoundingClientRect();
   const blob = await domtoimage.toBlob(mapElement, { width, height })
   const item = new ClipboardItem({ "image/png": blob });
-        navigator.clipboard.write([item]).then(() => {
-            console.log("Image copied to clipboard");
-        }).catch(err => {
-            console.error("Error copying image to clipboard", err);
-            // Fallback method: display the image for manual copying or saving
-            const imgURL = URL.createObjectURL(blob);
-            window.open(imgURL, '_blank').focus();
-        });
+  navigator.clipboard.write([item]).then(() => {
+    console.log("Image copied to clipboard");
+  }).catch(err => {
+    console.error("Error copying image to clipboard", err);
+    // Fallback method: display the image for manual copying or saving
+    const imgURL = URL.createObjectURL(blob);
+    window.open(imgURL, '_blank').focus();
+  });
 }
 
 watch(mapEditMode, async (newMapEditMode) => {
