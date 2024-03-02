@@ -35,20 +35,34 @@
                 <v-col cols="auto">
                   <v-btn @click="refreshMap()">Refresh Map</v-btn>
                 </v-col>
-                <v-col cols="auto">
+                <!-- <v-col cols="auto">
                   <v-switch v-model="mapEditMode" label="Edit Mode" color="secondary" hide-details inset></v-switch>
-                </v-col>
+                </v-col> -->
                 <v-col cols="auto">
                   <!-- an input element to set the consolidation radius in km -->
                   <v-text-field v-model="consolidationRadius" label="Consolidation Radius (km)"
                     type="number"></v-text-field>
                 </v-col>
               </v-row>
+              <v-row>
+                <v-col cols="12">
+                  <v-range-slider v-model="dateRangeSlider" :min="minTimestamp" :max="maxTimestamp" :step="dateRangeStep"
+                    label="Filter Sites by Date" @end="onSliderChange" :thumb-label="true" :ticks="dateRangeTicks"
+                    show-ticks="always" tick-size="4" strict>
+                    <template v-slot:thumb-label="{ modelValue }" class="date-range-slider-thumb">
+                      {{ formatDate(modelValue) }}
+                    </template>
+
+                  </v-range-slider> -->
+
+                </v-col>
+
+              </v-row>
             </v-container>
             <!-- contents for the popup on markers -->
             <div style="display: none;">
-              <v-card class="mx-auto" max-width="600" height="400" :image="poppedupFeature?.properties?.imageURL"
-                :title="poppedupFeature?.properties?.name" theme="dark" ref="popupContentRef">
+              <v-card class="mx-auto" max-width="600" :height="poppedupFeature?.properties?.imageURL?'400':'100%'" :image="poppedupFeature?.properties?.imageURL"
+                :title="poppedupFeature?.properties?.name" :theme="poppedupFeature?.properties?.imageURL?'dark':'light'" ref="popupContentRef">
 
                 <v-card-text>{{ formatDate(poppedupFeature?.properties?.timestamp) }}
                   {{ poppedupFeature?.properties?.city }},{{ poppedupFeature?.properties?.country }}
@@ -134,6 +148,7 @@ const { enqueueCall: enqueueCallToReverseGeocode } = useFunctionCallThrottler(15
 import { useImagesStore } from "@/store/imagesStore";
 const imagesStore = useImagesStore()
 import { useStorieStore } from "@/store/storiesStore";
+import { computed } from 'vue';
 const storiesStore = useStorieStore()
 const currentStory = computed(() => storiesStore.currentStory)
 const sitesData = computed(() => currentStory.value.sites);
@@ -146,7 +161,58 @@ const showPopup = ref(false)
 const showEditSitePopup = ref(false)
 const imageMetadata = ref()
 const mapEditMode = ref(false)
+const mapClusterMode = ref(false)
+const mapFilterMode = ref(false)
 const consolidationRadius = ref(2)
+const dateRangeTicks = computed(() => {
+  const start = minTimestamp.value
+  const end = maxTimestamp.value
+  const middle = start + Math.floor((end - start) / 2)
+  const dateRange = {}
+  dateRange[start] = formatDate(start)
+  dateRange[end] = formatDate(end)
+  dateRange[middle] = formatDate(middle)
+
+  return dateRange
+})
+
+const dateRangeSlider = ref([0, 0]) // Initial slider values (timestamps)
+const numberOfStepsInSlider = 50
+const dateRangeStep = computed(() => {
+  return Math.floor((maxTimestamp.value - minTimestamp.value) / numberOfStepsInSlider)
+})
+
+const minTimestamp = computed(() => {
+  if (sitesData.value.length === 0) return 0
+  let min = new Date(sitesData.value[0].timestamp)
+  sitesData.value.forEach(site => {
+    const siteTimestamp = new Date(site.timestamp)
+    if (siteTimestamp < min) {
+      min = siteTimestamp
+    }
+  })
+  return min.getTime()
+})
+
+const maxTimestamp = computed(() => {
+  if (sitesData.value.length === 0) return 0
+  let max = new Date(sitesData.value[0].timestamp)
+  sitesData.value.forEach(site => {
+    const siteTimestamp = new Date(site.timestamp)
+    if (siteTimestamp > max) {
+      max = siteTimestamp
+    }
+  })
+  return max.getTime()
+})
+
+const onSliderChange = (value) => {
+  // Optional: Callback for when the sliders' values changes
+  // You can update your data or make API calls here
+  console.log(`New range: ${value}  ${new Date(value[0])} until ${new Date(value[1])}`);
+  mapFilterMode.value = true
+  refreshMap()
+}
 
 const closeDialog = () => {
   showEditSitePopup.value = false;
@@ -282,12 +348,53 @@ const props = defineProps({
   zoomLevel: 10
 });
 
+const alignClustering = () => {
+  if (mapClusterMode.value) {
+    try {
+      map.value.removeLayer(geoJsonLayer);
+    } catch (error) {
+    }
+    clustersLayer.addLayer(geoJsonLayer);
+  }
+  else {
+    try {
+      clustersLayer.removeLayer(geoJsonLayer);
+    } catch (error) {
+    }
+    map.value.addLayer(geoJsonLayer);
+  }
+}
+
+const applyFilters = (sites) => {
+  if (mapFilterMode.value) {
+    const filteredSites = sites.filter(site => {
+      const date = new Date(site.timestamp)
+      const isWithinRange = date >= dateRangeSlider.value[0] && date <= dateRangeSlider.value[1]
+      return isWithinRange  
+    })
+    return filteredSites
+  } else return sites
+}
+
+const refreshMarkers = () => {
+  geoJsonLayer.clearLayers();
+  addSitesToLayer(geoJsonLayer, applyFilters(currentStory.value.sites));
+  alignClustering()
+}
+
+//watch cluster mode and toggle clustering when changed
+watch(mapClusterMode, () => {
+  alignClustering()
+})
 
 onMounted(() => {
   drawMap();
+  refreshMarkers();
+  dateRangeSlider.value = [minTimestamp.value, maxTimestamp.value];
 });
 const map = ref(null)
-let geoJsonLayer
+let geoJsonLayer, clustersLayer
+
 
 
 
@@ -295,6 +402,7 @@ let geoJsonLayer
 const refreshMap = () => {
   map.value.remove()
   drawMap()
+  refreshMarkers()
   mapEditMode.value = false
 }
 
@@ -390,7 +498,17 @@ const geoJSONToClipboard = () => {
   navigator.clipboard.writeText(JSON.stringify(geoJSON));
 }
 
+const showHideControls = (show) => {
+  map.value.zoomControl.getContainer().style.display = show?'block': 'none';
+  myControls.forEach(function(control) {
+    control.getContainer().style.display = show?'block': 'none';
+});  
+}
+const  myControls = [];
+
+
 const mapImageToClipboard = async () => {
+  showHideControls(false)
   const mapElement = document.querySelector("#mapid")
   const { width, height } = mapElement.getBoundingClientRect();
   const blob = await domtoimage.toBlob(mapElement, { width, height })
@@ -403,6 +521,8 @@ const mapImageToClipboard = async () => {
     const imgURL = URL.createObjectURL(blob);
     window.open(imgURL, '_blank').focus();
   });
+  showHideControls(true)
+  
 }
 
 watch(mapEditMode, async (newMapEditMode) => {
@@ -460,6 +580,11 @@ const drawMap = () => {
   }).addTo(map.value);
 
   attachMapListeners()
+  addClusterControl()
+  addEditModeControl()
+  addFilterControl()
+  clustersLayer = L.markerClusterGroup();
+  map.value.addLayer(clustersLayer);
 
   geoJsonLayer = L.geoJSON(null, {
     draggable: true,
@@ -500,20 +625,85 @@ const drawMap = () => {
           }
         }]
       });
-
-
-
-
     }
-  }) // .addTo(map.value);
-  addSitesToLayer(geoJsonLayer, currentStory.value.sites);
-  const markers = L.markerClusterGroup();
-  markers.addLayer(geoJsonLayer);
-
-  map.value.addLayer(markers);
+  })
 
 }
 
+
+const addFilterControl = () => {
+  const filterControl = L.control({ position: 'bottomleft' });
+  myControls.push(filterControl);
+
+  filterControl.onAdd = function (map) {
+    const div = L.DomUtil.create('div', 'map-control');
+    div.innerHTML = `<form><input id="filterCheckbox" ${mapFilterMode.value ? 'checked' : ''} type="checkbox" title="Apply filters on sites to display"> Apply Filters</form>`;
+    return div;
+  };
+  filterControl.addTo(map.value);
+  document.getElementById('filterCheckbox').addEventListener('change', function () {
+    if (this.checked) {
+      mapFilterMode.value = true;
+    } else {
+      mapFilterMode.value = false;
+    }
+  });
+}
+
+
+const addClusterControl = () => {
+  const clusteringControl = L.control({ position: 'bottomleft' });
+  myControls.push(clusteringControl);
+
+  clusteringControl.onAdd = function (map) {
+    const div = L.DomUtil.create('div', 'map-control');
+    div.innerHTML = `<form><input id="clusterCheckbox" ${mapClusterMode.value ? 'checked' : ''} type="checkbox" title="Enable Clustering of sites : show nearby sites as clusters"> Enable Clustering</form>`;
+    return div;
+  };
+  clusteringControl.addTo(map.value);
+  document.getElementById('clusterCheckbox').addEventListener('change', function () {
+    if (this.checked) {
+      mapClusterMode.value = true;
+      mapEditMode.value = false;
+    } else {
+      mapClusterMode.value = false;
+    }
+  });
+}
+
+
+const addEditModeControl = () => {
+  const editModeControl = L.control({ position: 'bottomleft' });
+  myControls.push(editModeControl);
+
+  editModeControl.onAdd = () => {
+    const div = L.DomUtil.create('div', 'map-control');
+    div.innerHTML = `<form><input id="editmodeCheckbox" type="checkbox" ${mapEditMode.value ? 'checked' : ''}  title="Enable Edit Mode: move, delete, add sites"> Edit Mode</form>`;
+    return div;
+  };
+  editModeControl.addTo(map.value);
+  document.getElementById('editmodeCheckbox').addEventListener('change', function () {
+    if (this.checked) {
+      mapEditMode.value = true;
+      mapclusterMode.value = false;
+    } else {
+      mapEditMode.value = false;
+    }
+  });
+
+}
+//if mapeditmode changes then refresh the editmodecontrol
+watch(mapEditMode, (newMapEditModeValue) => {
+  document.getElementById('editmodeCheckbox').checked = newMapEditModeValue
+  if (newMapEditModeValue) {
+    document.getElementById('clusterCheckbox').checked = !newMapEditModeValue
+    mapClusterMode.value = !newMapEditModeValue
+  }
+})
+
+watch(mapFilterMode, (newMapFilterModeValue) => {
+  refreshMarkers()
+})
 
 const attachMapListeners = () => {
   const mapContainer = map.value.getContainer();
@@ -689,17 +879,13 @@ const handlePastedText = (text) => {
     const geoJsonData = JSON.parse(text);
     for (const feature of geoJsonData.features) {
       if (feature.geometry.type === 'Point') {
-
         const newGeoJsonData =
         {
           "type": "FeatureCollection", "features": [feature]
         }
-
-
         createSiteFromGeoJSON(newGeoJsonData, null, new Date());
       }
     }
-
   }
 
   else if (isValidCoordinateFormat(text)) {
@@ -715,8 +901,6 @@ const handlePastedText = (text) => {
         , "geometry": { "coordinates": [longitude, latitude], "type": "Point" }
       }]
     }
-
-
     createSiteFromGeoJSON(newGeoJsonData, null, new Date());
   }
 }
@@ -729,5 +913,26 @@ const handlePastedText = (text) => {
   color: white;
   font-family: Arial, sans-serif;
   /* Other styling */
+}
+
+.v-slider-thumb__label {
+  min-width: 150px !important;
+}
+
+.v-slider-track__tick-label {
+  /* text-wrap: wrap !important;*/
+  font-size: 12px !important;
+}
+
+.map-control {
+  background-color: rgba(200, 200, 200, 0.8);
+  /* Light gray with transparency */
+  padding: 5px;
+  border-radius: 4px;
+}
+
+.leaflet-bottom.leaflet-left .leaflet-control {
+  margin-bottom: 0px;
+  padding: 0px;
 }
 </style>
