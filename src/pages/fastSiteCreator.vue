@@ -44,25 +44,13 @@
                     type="number"></v-text-field>
                 </v-col>
               </v-row>
-              <v-row>
-                <v-col cols="12">
-                  <v-range-slider v-model="dateRangeSlider" :min="minTimestamp" :max="maxTimestamp" :step="dateRangeStep"
-                    label="Filter Sites by Date" @end="onSliderChange" :thumb-label="true" :ticks="dateRangeTicks"
-                    show-ticks="always" tick-size="4" strict>
-                    <template v-slot:thumb-label="{ modelValue }" class="date-range-slider-thumb">
-                      {{ formatDate(modelValue) }}
-                    </template>
-
-                  </v-range-slider> -->
-
-                </v-col>
-
-              </v-row>
+             
             </v-container>
             <!-- contents for the popup on markers -->
             <div style="display: none;">
-              <v-card class="mx-auto" max-width="600" :height="poppedupFeature?.properties?.imageURL?'400':'100%'" :image="poppedupFeature?.properties?.imageURL"
-                :title="poppedupFeature?.properties?.name" :theme="poppedupFeature?.properties?.imageURL?'dark':'light'" ref="popupContentRef">
+              <v-card class="mx-auto" max-width="600" :height="poppedupFeature?.properties?.imageURL ? '400' : '100%'"
+                :image="poppedupFeature?.properties?.imageURL" :title="poppedupFeature?.properties?.name"
+                :theme="poppedupFeature?.properties?.imageURL ? 'dark' : 'light'" ref="popupContentRef">
 
                 <v-card-text>{{ formatDate(poppedupFeature?.properties?.timestamp) }}
                   {{ poppedupFeature?.properties?.city }},{{ poppedupFeature?.properties?.country }}
@@ -121,6 +109,34 @@
           </v-card-actions>
         </v-card>
       </v-dialog>
+
+      <v-dialog v-model="showMapFiltersPopup" max-width="800px">
+        <v-card>
+          <v-card-title>
+            <span class="headline">Map Filters</span>
+          </v-card-title>
+          <v-card-text>
+            <v-container>
+              <v-row>
+                <v-col cols="12">
+                  <v-range-slider v-model="dateRangeSlider" :min="minTimestamp" :max="maxTimestamp" :step="dateRangeStep"
+                    label="Filter Sites by Date" @end="onSliderChange" :thumb-label="true" :ticks="dateRangeTicks"
+                    show-ticks="always" tick-size="4" strict>
+                    <template v-slot:thumb-label="{ modelValue }" class="date-range-slider-thumb">
+                      {{ formatDate(modelValue) }}
+                    </template>
+                  </v-range-slider> 
+                </v-col>
+              </v-row>
+            </v-container>
+          </v-card-text>
+          <v-card-actions>
+            <v-spacer></v-spacer>
+            <v-btn color="blue darken-1" text @click="closeMapFiltersDialog">Close</v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
+
     </v-container>
   </v-responsive>
 </template>
@@ -155,10 +171,11 @@ const sitesData = computed(() => currentStory.value.sites);
 
 const search = ref("")
 
-const popupContentRef = ref(null)// $refs.foo.$el.innerHTML
+const popupContentRef = ref(null)
 const poppedupFeature = ref({})
 const showPopup = ref(false)
 const showEditSitePopup = ref(false)
+const showMapFiltersPopup = ref(false)
 const imageMetadata = ref()
 const mapEditMode = ref(false)
 const mapClusterMode = ref(false)
@@ -207,15 +224,16 @@ const maxTimestamp = computed(() => {
 })
 
 const onSliderChange = (value) => {
-  // Optional: Callback for when the sliders' values changes
-  // You can update your data or make API calls here
-  console.log(`New range: ${value}  ${new Date(value[0])} until ${new Date(value[1])}`);
   mapFilterMode.value = true
   refreshMap()
 }
 
 const closeDialog = () => {
   showEditSitePopup.value = false;
+}
+
+const closeMapFiltersDialog = () => {
+  showMapFiltersPopup.value = false;
 }
 
 const saveItem = () => {
@@ -236,7 +254,6 @@ const createGeoJSONfromImageGPS = () => {
   editedSite.value.geoJSONText = JSON.stringify(editedLocation.value.geoJSON)
 }
 const handleImageChange = (event) => {
-  console.log(JSON.stringify(event))
   editedSite.value.imageId = event.imageId
   editedSite.value.imageUrl = event.imageUrl
 }
@@ -250,18 +267,36 @@ const headers = [
   { title: "Delete", value: 'remove' },
 ]
 
-function formatDate(timestamp) {
-  // Define an array of month names to use in the formatted string
-  const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-  const date = new Date(timestamp)
-  // Extract the day, month, year, and hour from the date
-  const day = date.getDate();
-  const month = months[date.getMonth()];
-  const year = date.getFullYear();
-  const hour = date.getHours();
+const oneDayInMS = 86400000
+const dateFormatStyle = computed(() => {
+  const timerange = maxTimestamp.value - minTimestamp.value
+  if (timerange < oneDayInMS) {
+    return "short"  // HH:MI
+  } else if (timerange < 50 * oneDayInMS) return "medium"  // DD MON HH
+  else
+    return "long"  // DD MON Y
+})
 
-  // Construct and return the formatted string
-  return `${day} ${month} ${year}, ${hour}h `;
+const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+function formatDate(timestamp) {
+  const date = new Date(timestamp)
+
+  if (dateFormatStyle.value === "short") {
+    const hour = date.getHours();
+    const min = date.getMinutes();
+    return `${hour}:${min < 10 ? '0' : ''}${min}`
+  } else if (dateFormatStyle.value === "medium") {
+    const day = date.getDate();
+    const month = months[date.getMonth()];
+    const hour = date.getHours();
+    const min = date.getMinutes();
+    return `${day} ${month} ${hour}:${min < 10 ? '0' : ''}${min}`
+  } else {
+    const day = date.getDate();
+    const month = months[date.getMonth()];
+    const year = date.getFullYear();
+    return `${day} ${month} ${year}`
+  }
 }
 
 const customSort = (items, sortBy, sortDesc) => {
@@ -341,8 +376,6 @@ const removeSite = (site) => {
 }
 
 
-
-
 const props = defineProps({
   geoJsonPoint: Object,
   zoomLevel: 10
@@ -370,7 +403,7 @@ const applyFilters = (sites) => {
     const filteredSites = sites.filter(site => {
       const date = new Date(site.timestamp)
       const isWithinRange = date >= dateRangeSlider.value[0] && date <= dateRangeSlider.value[1]
-      return isWithinRange  
+      return isWithinRange
     })
     return filteredSites
   } else return sites
@@ -378,6 +411,7 @@ const applyFilters = (sites) => {
 
 const refreshMarkers = () => {
   geoJsonLayer.clearLayers();
+  clustersLayer.clearLayers();
   addSitesToLayer(geoJsonLayer, applyFilters(currentStory.value.sites));
   alignClustering()
 }
@@ -394,9 +428,6 @@ onMounted(() => {
 });
 const map = ref(null)
 let geoJsonLayer, clustersLayer
-
-
-
 
 
 const refreshMap = () => {
@@ -499,12 +530,12 @@ const geoJSONToClipboard = () => {
 }
 
 const showHideControls = (show) => {
-  map.value.zoomControl.getContainer().style.display = show?'block': 'none';
-  myControls.forEach(function(control) {
-    control.getContainer().style.display = show?'block': 'none';
-});  
+  map.value.zoomControl.getContainer().style.display = show ? 'block' : 'none';
+  myControls.forEach(function (control) {
+    control.getContainer().style.display = show ? 'block' : 'none';
+  });
 }
-const  myControls = [];
+const myControls = [];
 
 
 const mapImageToClipboard = async () => {
@@ -522,7 +553,7 @@ const mapImageToClipboard = async () => {
     window.open(imgURL, '_blank').focus();
   });
   showHideControls(true)
-  
+
 }
 
 watch(mapEditMode, async (newMapEditMode) => {
@@ -552,25 +583,32 @@ watch(mapEditMode, async (newMapEditMode) => {
       marker.dragging.disable();
     });
   }
+
 })
 
 const drawMap = () => {
   // Initialize the map
   map.value = L.map('mapid', {
     contextmenu: true,
-    contextmenuWidth: 140,
+    contextmenuWidth: 160,
     contextmenuItems: [{
       text: 'Center map here',
       callback: centerMap
     }, {
-      text: 'Copy GeoJSON to Clipboard',
+      text: 'GeoJSON to Clipboard',
       callback: geoJSONToClipboard
     }, {
-      text: 'Copy Map as Image to Clipboard',
+      text: 'Image to Clipboard',
       callback: mapImageToClipboard
     }, {
       text: 'Consolidate All Sites',
       callback: consolidateAllSites
+    }, {
+      text: 'Show Filters',
+      callback: () => {
+        // show filter dialog
+        showMapFiltersPopup.value = true
+      }
     }]
   }).setView([51.505, -0.09], 7); // Temporary view, will adjust based on GeoJSON
 
@@ -586,12 +624,15 @@ const drawMap = () => {
   clustersLayer = L.markerClusterGroup();
   map.value.addLayer(clustersLayer);
 
+
   geoJsonLayer = L.geoJSON(null, {
     draggable: true,
     onEachFeature: async (feature, layer) => {
       const tooltip = `${feature.properties.name}`;
-      layer.bindTooltip(tooltip, { permanent: true, className: 'my-custom-tooltip', direction: 'right' });
-
+      layer.bindTooltip(tooltip, {
+        permanent: true
+        , className: `my-custom-tooltip tooltip${feature.properties.id}`, direction: 'auto'
+      })
       layer.bindPopup((layer) => {
         poppedupFeature.value = layer.feature;
         console.log(layer.feature.properties.name);
@@ -685,7 +726,7 @@ const addEditModeControl = () => {
   document.getElementById('editmodeCheckbox').addEventListener('change', function () {
     if (this.checked) {
       mapEditMode.value = true;
-      mapclusterMode.value = false;
+      mapClusterMode.value = false;
     } else {
       mapEditMode.value = false;
     }
@@ -934,5 +975,4 @@ const handlePastedText = (text) => {
 .leaflet-bottom.leaflet-left .leaflet-control {
   margin-bottom: 0px;
   padding: 0px;
-}
-</style>
+}</style>
