@@ -264,7 +264,8 @@ const saveItem = () => {
   editedSite.value.timestamp = new Date(year, month - 1, day, hours, minutes);
 
   storiesStore.updateSite(editedSite.value)
-  const tooltip = document.getElementsByClassName(`tooltip${editedSite.value.id}`)[0]
+
+  const tooltip = document.getElementsByClassName(`tooltip${editedSite.value.id}`.replace(/-/g, ""))[0]
   if (tooltip) {
     tooltip.innerHTML = editedSite.value.label
   }
