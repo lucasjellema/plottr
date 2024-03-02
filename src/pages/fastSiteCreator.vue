@@ -44,35 +44,28 @@
                     type="number"></v-text-field>
                 </v-col>
               </v-row>
-             
+
             </v-container>
             <!-- contents for the popup on markers -->
             <div style="display: none;">
               <v-card class="mx-auto" max-width="600" :height="poppedupFeature?.properties?.imageURL ? '400' : '100%'"
-                :image="poppedupFeature?.properties?.imageURL" :title="poppedupFeature?.properties?.name"
+                :image="poppedupFeature?.properties?.imageURL" :title="poppedupSite?.label"
                 :theme="poppedupFeature?.properties?.imageURL ? 'dark' : 'light'" ref="popupContentRef">
 
-                <v-card-text>{{ formatDate(poppedupFeature?.properties?.timestamp) }}
-                  {{ poppedupFeature?.properties?.city }},{{ poppedupFeature?.properties?.country }}
-                  <v-btn icon @click="editSiteFromPopup()" v-if="mapEditMode">
+                <v-card-text>{{ formatDate(poppedupSite?.timestamp) }}
+                  {{ poppedupFeature?.properties?.city }},{{ poppedupSite?.country }}
+                  <!-- <v-btn icon @click="editSiteFromPopup()" v-if="mapEditMode">
                     <v-icon>mdi-pencil</v-icon>
-                  </v-btn>
+                  </v-btn> -->
                 </v-card-text>
               </v-card>
             </div>
-            <!-- contents for the context menu on markers
-            <div id="markerContextMenu"
-              style="display: none; position: absolute; z-index: 1000; background-color: white; border: 1px solid #ccc; border-radius: 4px;">
-              <ul style="list-style: none; margin: 0; padding: 5px;">
-                <li><a href="#" id="deleteMarker">Delete</a></li>
-                <li><a href="#" id="consolidateMarker">Consolidate ({{ consolidationRadius }} km)</a></li>
-              </ul>
-            </div> -->
+
           </v-col>
         </v-row>
       </v-main>
       <!-- Add/Edit Site Dialog -->
-      <v-dialog v-model="showEditSitePopup" max-width="800px">
+      <v-dialog v-model="showEditSitePopup" max-width="800px" >
         <v-card>
           <v-card-title>
             <span class="headline">Edit Site {{ editedSite.label }}</span>
@@ -81,24 +74,41 @@
             <v-container>
               <v-form ref="form">
                 <v-text-field v-model="editedSite.label" label="Label" required></v-text-field>
-                <v-text-field v-model="editedSite.address" label="Address"></v-text-field>
-                <v-text-field v-model="editedSite.city" label="City"></v-text-field>
-                <v-text-field v-model="editedSite.country" label="Country"></v-text-field>
-                <v-text-field v-model="editedSite.timestamp" label="Timestamp"></v-text-field>
-                <v-select v-model="editedSite.resolution" label="Resolution"
-                  hint="How exact or roundabout is this location to be interpreted?"
-                  :items="resolutionOptions"></v-select>
-                <!-- <v-text-field v-model="editedSite.geoJSONText" label="GeoJSON"></v-text-field>
+                <v-expansion-panels :multiple="true">
+                  <v-expansion-panel title="Place" collapse-icon="mdi-map-marker" expand-icon="mdi-map-marker">
+                    <v-expansion-panel-text>
+                      <v-text-field v-model="editedSite.address" label="Address"></v-text-field>
+                      <v-text-field v-model="editedSite.city" label="City"></v-text-field>
+                      <v-text-field v-model="editedSite.country" label="Country"></v-text-field>
+                      <v-select v-model="editedSite.resolution" label="Resolution"
+                        hint="How exact or roundabout is this location to be interpreted?"
+                        :items="resolutionOptions"></v-select>
+                    </v-expansion-panel-text>
+                  </v-expansion-panel>
+                  <v-expansion-panel title="Time" collapse-icon="mdi-clock" expand-icon="mdi-clock">
+                    <v-expansion-panel-text>
+                      <v-text-field v-model="editedSite.timestamp" label="Timestamp"></v-text-field>
+                    </v-expansion-panel-text>
+                  </v-expansion-panel>
+                  <v-expansion-panel title="Image" collapse-icon="mdi-image" expand-icon="mdi-image">
+                    <v-expansion-panel-text>
+
+                      <!-- <v-text-field v-model="editedSite.geoJSONText" label="GeoJSON"></v-text-field>
                 <a href="https://geojson.io" target="_new">Compose GeoJSON
                   <v-icon>mdi-map</v-icon>
                 </a>
                 <v-btn v-if="imageMetadata && imageMetadata.gpsInfo && imageMetadata.gpsInfo.latitude"
                   @click="createGeoJSONfromImageGPS" prepend-icon="mdi-web">Set GeoJSON from Image GPS</v-btn> -->
 
-                <image-editor :image-url="editedSite.imageUrl" :image-id="editedSite.imageId" ref="imageEditorRef"
-                  image-height=600 image-width=800 @image-change="handleImageChange"
-                  @gps-data="handleGPSData"></image-editor>
+                      <image-editor :image-url="editedSite.imageUrl" :image-id="editedSite.imageId" ref="imageEditorRef"
+                        image-height=600 image-width=800 @image-change="handleImageChange"
+                        @gps-data="handleGPSData"></image-editor>
 
+                    </v-expansion-panel-text>
+                  </v-expansion-panel>
+
+
+                </v-expansion-panels>
               </v-form>
             </v-container>
           </v-card-text>
@@ -125,7 +135,7 @@
                     <template v-slot:thumb-label="{ modelValue }" class="date-range-slider-thumb">
                       {{ formatDate(modelValue) }}
                     </template>
-                  </v-range-slider> 
+                  </v-range-slider>
                 </v-col>
               </v-row>
             </v-container>
@@ -173,6 +183,7 @@ const search = ref("")
 
 const popupContentRef = ref(null)
 const poppedupFeature = ref({})
+const poppedupSite = ref({})
 const showPopup = ref(false)
 const showEditSitePopup = ref(false)
 const showMapFiltersPopup = ref(false)
@@ -237,14 +248,21 @@ const closeMapFiltersDialog = () => {
 }
 
 const saveItem = () => {
-  editedSite.value.geoJSON = JSON.parse(editedSite.value.geoJSONText)
+  // no JSONTEXT in this page editedSite.value.geoJSON =JSON.parse(editedSite.value.geoJSONText)
   editedSite.value.geoJSON.features[0].properties.name = editedSite.value.label
+  editedSite.value.geoJSON.features[0].properties.description = editedSite.value.description
   editedSite.value.geoJSON.features[0].properties.city = editedSite.value.city
   editedSite.value.geoJSON.features[0].properties.country = editedSite.value.country
   editedSite.value.geoJSON.features[0].properties.timestamp = editedSite.value.timestamp
   editedSite.value.geoJSON.features[0].properties.imageId = editedSite.value.imageId
 
   storiesStore.updateSite(editedSite.value)
+  const tooltip = document.getElementsByClassName(`tooltip${editedSite.value.id}`)[0]
+  if (tooltip) {
+    tooltip.innerHTML = editedSite.value.label
+  }
+
+ 
   closeDialog();
 }
 
@@ -310,7 +328,6 @@ const customSort = (items, sortBy, sortDesc) => {
       return (dateA - dateB) * sortOrder;
     });
   }
-
   // Fallback for other sorts or implement similarly
   return items;
 }
@@ -325,6 +342,7 @@ const resolutionOptions = [
 
 let editedSite = ref({
   label: '',
+  description: '',
   address: '',
   city: '',
   country: 'nl',
@@ -634,11 +652,22 @@ const drawMap = () => {
         , className: `my-custom-tooltip tooltip${feature.properties.id}`, direction: 'auto'
       })
       layer.bindPopup((layer) => {
+        poppedupSite.value = storiesStore.getSite(layer.feature.properties.id)
+        if (mapEditMode.value) {
+          // open edit dialog
+          editedSite.value=poppedupSite.value
+          showEditSitePopup.value = true
+          return popupContentRef.value.$el
+//          return editSitePopupContentRef.value.$el;
+        }
+
         poppedupFeature.value = layer.feature;
-        console.log(layer.feature.properties.name);
-        if (layer.feature.properties.imageId) {
+        // get site from storiesStore for this feature
+
+        console.log(`open popup for ${layer.feature.properties.id} ${poppedupSite.value.label}`);
+        if (poppedupSite.value.imageId) {
           try {
-            setImageURLonFeature(layer.feature.properties.imageId);
+            setImageURLonFeature(poppedupSite.value.imageId);
           }
           catch (e) { }
         }
@@ -975,4 +1004,5 @@ const handlePastedText = (text) => {
 .leaflet-bottom.leaflet-left .leaflet-control {
   margin-bottom: 0px;
   padding: 0px;
-}</style>
+}
+</style>
