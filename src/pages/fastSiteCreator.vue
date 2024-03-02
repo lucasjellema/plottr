@@ -65,7 +65,7 @@
         </v-row>
       </v-main>
       <!-- Add/Edit Site Dialog -->
-      <v-dialog v-model="showEditSitePopup" max-width="800px" >
+      <v-dialog v-model="showEditSitePopup" max-width="800px">
         <v-card>
           <v-card-title>
             <span class="headline">Edit Site {{ editedSite.label }}</span>
@@ -88,6 +88,8 @@
                   <v-expansion-panel title="Time" collapse-icon="mdi-clock" expand-icon="mdi-clock">
                     <v-expansion-panel-text>
                       <v-text-field v-model="editedSite.timestamp" label="Timestamp"></v-text-field>
+                      <v-text-field label="Date" type="date" v-model="editedSite.datePart"></v-text-field>
+                      <v-text-field label="Time" type="time" v-model="editedSite.timePart"></v-text-field>
                     </v-expansion-panel-text>
                   </v-expansion-panel>
                   <v-expansion-panel title="Image" collapse-icon="mdi-image" expand-icon="mdi-image">
@@ -256,13 +258,18 @@ const saveItem = () => {
   editedSite.value.geoJSON.features[0].properties.timestamp = editedSite.value.timestamp
   editedSite.value.geoJSON.features[0].properties.imageId = editedSite.value.imageId
 
+
+  const [year, month, day] = editedSite.value.datePart.split('-');
+  const [hours, minutes] = editedSite.value.timePart.split(':');
+  editedSite.value.timestamp = new Date(year, month - 1, day, hours, minutes);
+
   storiesStore.updateSite(editedSite.value)
   const tooltip = document.getElementsByClassName(`tooltip${editedSite.value.id}`)[0]
   if (tooltip) {
     tooltip.innerHTML = editedSite.value.label
   }
 
- 
+
   closeDialog();
 }
 
@@ -355,9 +362,15 @@ let editedSite = ref({
   timestamp: new Date()
 })
 
-const editItem = (item) => {
-  editedSite.value = { ...item }; // Make a copy of the item to edit
-  editedSite.value.geoJSONText = JSON.stringify(editedSite.value.geoJSON)
+
+
+const editItem = (site) => {
+  editedSite.value = { ...site }; // Make a copy of the item to edit
+  // editedSite.value.geoJSONText = JSON.stringify(editedSite.value.geoJSON)
+  const dateForTimestamp = new Date(editedSite.value.timestamp)
+  editedSite.value.datePart = dateForTimestamp.toISOString().slice(0, 10)
+  editedSite.value.timePart = dateForTimestamp.toISOString().slice(11, 16) // HH:MI
+
   //    imageMetadata.value = null
   showEditSitePopup.value = true;
 }
@@ -647,18 +660,39 @@ const drawMap = () => {
     draggable: true,
     onEachFeature: async (feature, layer) => {
       const tooltip = `${feature.properties.name}`;
+      const tooltipClassName = `tooltip${feature.properties.id}`.replace(/-/g, "")
       layer.bindTooltip(tooltip, {
         permanent: true
-        , className: `my-custom-tooltip tooltip${feature.properties.id}`, direction: 'auto'
+        , className: `my-custom-tooltip ${tooltipClassName}`
+        , direction: 'auto' // derive direction from feature properties ; also opacity , 
+        , interactive: true // needed to handle tooltip click events
       })
+
+//TODO allow user to edit tool tip characteristics; store them in geojson properties; use them to set direction and opacity, and color, background color, font-size
+
+      setTimeout(() => {
+        var tooltipElement = document.querySelector(`.${tooltipClassName}`);
+        createCSSSelector(`.${tooltipClassName}`, `background: yellow; border: 1px solid black; font-size: 18px;color: black;`);
+
+
+        if (tooltipElement) {
+          tooltipElement.addEventListener('click', function () {
+            console.log(`Tooltip was clicked! for feature ${feature.properties.name}`);
+            // Add any click handling logic here
+          });
+        }
+      }, 10); // Small timeout to ensure the tooltip is rendered
+
+
       layer.bindPopup((layer) => {
         poppedupSite.value = storiesStore.getSite(layer.feature.properties.id)
         if (mapEditMode.value) {
           // open edit dialog
-          editedSite.value=poppedupSite.value
-          showEditSitePopup.value = true
+          // editedSite.value = poppedupSite.value
+          // showEditSitePopup.value = true
+          editItem(poppedupSite.value)
           return popupContentRef.value.$el
-//          return editSitePopupContentRef.value.$el;
+          //          return editSitePopupContentRef.value.$el;
         }
 
         poppedupFeature.value = layer.feature;
@@ -974,6 +1008,16 @@ const handlePastedText = (text) => {
     createSiteFromGeoJSON(newGeoJsonData, null, new Date());
   }
 }
+
+// from https://gist.github.com/sagarpanda/ed583b408a38c56f33ba
+function createCSSSelector(selector, style) {
+  const stylesheet = document.styleSheets[document.styleSheets.length - 1];
+  stylesheet.insertRule(`${selector} { ${style} }`, stylesheet.cssRules.length);
+  //stylesheet.insertRule(`${selector} { background: pink; border: 1px solid black;}`, stylesheet.cssRules.length);
+  // stylesheet.insertRule(`.my-custom-tooltip { background: pink; border: 1px solid black;}`, 0);
+
+}
+
 
 
 </script>
