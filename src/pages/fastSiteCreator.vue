@@ -150,14 +150,23 @@
                           </v-col>
                         </v-row>
                         <v-row>
-                          <v-col 
-
-                            cols="3"
-                            v-for="(icon, index) in icons"
-                            :key="index"
-                            class="text-center"
-                            @click="selectIcon(icon)"
-                            >
+                          <v-col cols="2">
+                            <div>Pick Icon for the Toolip</div>
+                          </v-col>
+                          <v-col cols="2" offset="1">
+                            <v-btn @click="editedSite.tooltipIcon = ''">Clear Icon</v-btn>
+                          </v-col>
+                          <v-col cols="2" offset="2">
+                            <v-radio-group v-model="editedSite.tooltipSize">
+                              <v-radio label="Small" :value="0"></v-radio>
+                              <v-radio label="Normal" :value="1"></v-radio>
+                              <v-radio :value="2" label="Large"></v-radio>
+                            </v-radio-group>
+                          </v-col>
+                        </v-row>
+                        <v-row>
+                          <v-col cols="2" v-for="(icon, index) in icons" :key="index" class="text-center"
+                            @click="selectIcon(icon)">
                             <v-icon large :color="editedSite.tooltipIcon === icon ? 'blue' : 'black'"
                               :class="{ 'icon-selected': editedSite.tooltipIcon === icon }">
                               {{ icon }}
@@ -259,7 +268,7 @@ const sitesData = computed(() => currentStory.value.sites);
 const search = ref("")
 
 const icons = [
-'mdi-home',
+  'mdi-home',
   'mdi-airplane',
   'mdi-bike',
   'mdi-car',
@@ -368,17 +377,37 @@ const saveItem = () => {
   const [year, month, day] = editedSite.value.datePart.split('-');
   const [hours, minutes] = editedSite.value.timePart.split(':');
   editedSite.value.timestamp = new Date(year, month - 1, day, hours, minutes); // TODO do something about the TIMEZONE!! 
-
   storiesStore.updateSite(editedSite.value)
   refreshSite(editedSite.value)
 
   const tooltip = document.getElementsByClassName(`tooltip${editedSite.value.id}`.replace(/-/g, ""))[0]
-  if (tooltip) {
-    tooltip.innerHTML = editedSite.value.label
-  }
+  refreshTooltip(editedSite.value, tooltip)
+  // if (tooltip) {
+  //   tooltip.innerHTML = editedSite.value.label
+  // }
 
 
   closeDialog();
+}
+
+const refreshTooltip = (site, tooltipElement) => {
+  tooltipElement.innerHTML = `<i class="mdi ${site.tooltipIcon ? site.tooltipIcon : ''}" 
+          style="font-size: ${site.tooltipSize ? 10 + 8*site.tooltipSize : '14'}px; color=${site.tooltipColor ? site.tooltipColor : 'black'}"></i>${site.label}`;
+          // set font color style on tooltipElement
+          // set background color style on tooltipElement
+          tooltipElement.style.fontSize = `${site.tooltipSize ? 10 + 8*site.tooltipSize : '14'}px`;
+          tooltipElement.style.color = `${site.tooltipColor ? site.tooltipColor : 'black'}`;
+          tooltipElement.style.background = site.tooltipBackgroundColor ? site.tooltipBackgroundColor : 'yellow';
+          //          createCSSSelector(`.${tooltipClassName}`, `color: ${site.tooltipColor?site.tooltipColor:'black'};background: ${site.tooltipBackgroundColor?site.tooltipBackgroundColor:'yellow'}; border: 1px solid black; font-size: 18px;color: black;`);
+
+
+          if (tooltipElement) {
+            tooltipElement.addEventListener('click', function () {
+              console.log(`Tooltip was clicked! for feature ${feature.properties.name}`);
+              // Add any click handling logic here
+            });
+          }
+
 }
 
 const createGeoJSONfromImageGPS = () => {
@@ -489,6 +518,9 @@ const editItem = (site) => {
   }
   if (!site.tooltipColor) {
     editedSite.value.tooltipColor = '#000000'
+  }
+  if (!site.tooltipSize) {
+    editedSite.value.tooltipSize = 1
   }
 
   // editedSite.value.geoJSONText = JSON.stringify(editedSite.value.geoJSON)
@@ -819,26 +851,28 @@ const drawMap = () => {
 
         setTimeout(() => {
           const tooltipElement = document.querySelector(`.${tooltipClassName}`);
-
-          // only set icon in <i> when an icon is defined on site
-          //todo derive font-size from the site.tooltipSize property
-          //todo tooltip does not refresh properly after save from edit window (it reverts to the style defined by my-custom-tooltip )
-
-          tooltipElement.innerHTML = `<i class="mdi ${site.tooltipIcon?site.tooltipIcon:''}" style="font-size: 24px; color=${site.tooltipColor?site.tooltipColor:'black'}"></i>${feature.properties.name}`;
-          // set font color style on tooltipElement
-          // set background color style on tooltipElement
-          tooltipElement.style.fontSize = '18px';
-          tooltipElement.style.color = site.tooltipColor ? site.tooltipColor : 'black';
-          tooltipElement.style.background = site.tooltipBackgroundColor ? site.tooltipBackgroundColor : 'yellow';
-          //          createCSSSelector(`.${tooltipClassName}`, `color: ${site.tooltipColor?site.tooltipColor:'black'};background: ${site.tooltipBackgroundColor?site.tooltipBackgroundColor:'yellow'}; border: 1px solid black; font-size: 18px;color: black;`);
+          refreshTooltip(site, tooltipElement)
 
 
-          if (tooltipElement) {
-            tooltipElement.addEventListener('click', function () {
-              console.log(`Tooltip was clicked! for feature ${feature.properties.name}`);
-              // Add any click handling logic here
-            });
-          }
+          // // only set icon in <i> when an icon is defined on site
+          // //todo tooltip does not refresh properly after save from edit window (it reverts to the style defined by my-custom-tooltip )
+
+          // tooltipElement.innerHTML = `<i class="mdi ${site.tooltipIcon ? site.tooltipIcon : ''}" 
+          // style="font-size: ${site.tooltipSize ? 10 + 8*site.tooltipSize : '14'}px; color=${site.tooltipColor ? site.tooltipColor : 'black'}"></i>${feature.properties.name}`;
+          // // set font color style on tooltipElement
+          // // set background color style on tooltipElement
+          // tooltipElement.style.fontSize = `${site.tooltipSize ? 10 + 8*site.tooltipSize : '14'}px`;
+          // tooltipElement.style.color = `${site.tooltipColor ? site.tooltipColor : 'black'}`;
+          // tooltipElement.style.background = site.tooltipBackgroundColor ? site.tooltipBackgroundColor : 'yellow';
+          // //          createCSSSelector(`.${tooltipClassName}`, `color: ${site.tooltipColor?site.tooltipColor:'black'};background: ${site.tooltipBackgroundColor?site.tooltipBackgroundColor:'yellow'}; border: 1px solid black; font-size: 18px;color: black;`);
+
+
+          // if (tooltipElement) {
+          //   tooltipElement.addEventListener('click', function () {
+          //     console.log(`Tooltip was clicked! for feature ${feature.properties.name}`);
+          //     // Add any click handling logic here
+          //   });
+          // }
         }, 50); // Small timeout to ensure the tooltip is rendered
 
       }
