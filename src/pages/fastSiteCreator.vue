@@ -65,7 +65,7 @@
         </v-row>
       </v-main>
       <!-- Add/Edit Site Dialog -->
-      <v-dialog v-model="showEditSitePopup" max-width="800px">
+      <v-dialog v-model="showEditSitePopup" max-width="1000px">
         <v-card>
           <v-card-title>
             <span class="headline">Edit Site {{ editedSite.label }}</span>
@@ -118,18 +118,34 @@
                     <v-expansion-panel-text>
                       <v-container>
                         <v-row>
-
-                          <v-col cols="12">
-                            <!-- Display Selected Color & Input Field to Show/Change Color -->
-                            <v-text-field v-model="editedSite.backgroundColor" readonly append-icon="mdi-pencil"
-                              :style="{ 'background-color': editedSite.tooltipColor }" prepend-icon="mdi-presentation"
-                              @click:append="showTooltipColorPicker = !showTooltipColorPicker"></v-text-field>
-                            <v-dialog v-model="showTooltipColorPicker" width="300px">
+                          <v-col cols="2">
+                            <div>Tooltip Color</div>
+                            <div
+                              :style="{ backgroundColor: editedSite.tooltipColor, width: '100px', height: '50px', cursor: 'pointer', border: '1px solid black'}"
+                              @click="showtooltipColorPicker = !showtooltipColorPicker"></div>
+                            <v-dialog v-model="showtooltipColorPicker" width="300px">
                               <v-card>
                                 <v-color-picker v-model="editedSite.tooltipColor" hide-inputs></v-color-picker>
                               </v-card>
                             </v-dialog>
+                          </v-col>
+                          <v-col cols="2">
+                            <div>Background</div>
+                            <div
+                              :style="{ backgroundColor: editedSite.tooltipBackgroundColor, width: '100px', height: '50px', cursor: 'pointer', border: '1px solid black'}"
+                              @click="showtooltipBackgroundColorPicker = !showtooltipBackgroundColorPicker"></div>
+                            <v-dialog v-model="showtooltipBackgroundColorPicker" width="300px">
+                              <v-card>
+                                <v-color-picker v-model="editedSite.tooltipBackgroundColor" hide-inputs></v-color-picker>
+                              </v-card>
+                            </v-dialog>
+                          </v-col>
+                        
+                          <v-col cols="2" >
                             <v-checkbox v-model="editedSite.showTooltip" label="Show Label on Map"></v-checkbox>
+                          </v-col>
+                        <v-col cols="4" offset="1">
+                            <h5>Pick location of tooltip</h5>
                             <TooltipDirectionSelector v-model="editedSite.tooltipDirection"></TooltipDirectionSelector>
                           </v-col>
                         </v-row>
@@ -220,7 +236,8 @@ const showPopup = ref(false)
 const showEditSitePopup = ref(false)
 const showMapFiltersPopup = ref(false)
 
-const showTooltipColorPicker = ref(false)
+const showtooltipColorPicker = ref(false)
+const showtooltipBackgroundColorPicker = ref(false)
 const imageMetadata = ref()
 const mapEditMode = ref(false)
 const mapClusterMode = ref(false)
@@ -409,6 +426,12 @@ const editItem = (site) => {
   }
   if (!site.tooltipDirection) {
     editedSite.value.tooltipDirection = 'auto'
+  }
+  if (!site.tooltipBackgroundColor) {
+    editedSite.value.tooltipBackgroundColor = '#f8fc03' // yellow
+  }
+  if (!site.tooltipColor) {
+    editedSite.value.tooltipColor = '#000000'
   }
 
   // editedSite.value.geoJSONText = JSON.stringify(editedSite.value.geoJSON)
@@ -735,11 +758,16 @@ const drawMap = () => {
           , interactive: true // needed to handle tooltip click events
         })
 
-        //TODO allow user to edit tool tip characteristics; store them in geojson properties; use them to set direction and opacity, and color, background color, font-size
+        //TODO allow user to edit tool tip characteristics; store them in geojson properties; use them to set direction opacity, and color, background color, font-size
 
         setTimeout(() => {
           const tooltipElement = document.querySelector(`.${tooltipClassName}`);
-          createCSSSelector(`.${tooltipClassName}`, `background: yellow; border: 1px solid black; font-size: 18px;color: black;`);
+          // set font color style on tooltipElement
+          // set background color style on tooltipElement
+          tooltipElement.style.fontSize = '18px';
+          tooltipElement.style.color = site.tooltipColor?site.tooltipColor:'black';
+          tooltipElement.style.background = site.tooltipBackgroundColor?site.tooltipBackgroundColor:'yellow';
+//          createCSSSelector(`.${tooltipClassName}`, `color: ${site.tooltipColor?site.tooltipColor:'black'};background: ${site.tooltipBackgroundColor?site.tooltipBackgroundColor:'yellow'}; border: 1px solid black; font-size: 18px;color: black;`);
 
 
           if (tooltipElement) {
@@ -965,7 +993,8 @@ function createSiteFromGeoJSON(newGeoJsonData, imageId, dateTimeOriginal) {
     imageId: imageId,
     timestamp: dateTimeOriginal,
     geoJSON: newGeoJsonData,
-    resolution: mapZoomToResolution(map.value.getZoom())
+    resolution: mapZoomToResolution(map.value.getZoom()),
+    showTooltip: true
   };
   console.log(site.resolution)
   storiesStore.addSite(site);
