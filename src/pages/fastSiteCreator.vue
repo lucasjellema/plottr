@@ -121,7 +121,7 @@
                           <v-col cols="2">
                             <div>Tooltip Color</div>
                             <div
-                              :style="{ backgroundColor: editedSite.tooltipColor, width: '100px', height: '50px', cursor: 'pointer', border: '1px solid black'}"
+                              :style="{ backgroundColor: editedSite.tooltipColor, width: '100px', height: '50px', cursor: 'pointer', border: '1px solid black' }"
                               @click="showtooltipColorPicker = !showtooltipColorPicker"></div>
                             <v-dialog v-model="showtooltipColorPicker" width="300px">
                               <v-card>
@@ -132,7 +132,7 @@
                           <v-col cols="2">
                             <div>Background</div>
                             <div
-                              :style="{ backgroundColor: editedSite.tooltipBackgroundColor, width: '100px', height: '50px', cursor: 'pointer', border: '1px solid black'}"
+                              :style="{ backgroundColor: editedSite.tooltipBackgroundColor, width: '100px', height: '50px', cursor: 'pointer', border: '1px solid black' }"
                               @click="showtooltipBackgroundColorPicker = !showtooltipBackgroundColorPicker"></div>
                             <v-dialog v-model="showtooltipBackgroundColorPicker" width="300px">
                               <v-card>
@@ -140,13 +140,42 @@
                               </v-card>
                             </v-dialog>
                           </v-col>
-                        
-                          <v-col cols="2" >
+
+                          <v-col cols="2">
                             <v-checkbox v-model="editedSite.showTooltip" label="Show Label on Map"></v-checkbox>
                           </v-col>
-                        <v-col cols="4" offset="1">
-                            <h5>Pick location of tooltip</h5>
+                          <v-col cols="4" offset="1">
+                            <div>Pick location of tooltip</div>
                             <TooltipDirectionSelector v-model="editedSite.tooltipDirection"></TooltipDirectionSelector>
+                          </v-col>
+                        </v-row>
+                        <v-row>
+                          <v-col 
+
+                            cols="3"
+                            v-for="(icon, index) in icons"
+                            :key="index"
+                            class="text-center"
+                            @click="selectIcon(icon)"
+                            >
+                            <v-icon large :color="editedSite.tooltipIcon === icon ? 'blue' : 'black'"
+                              :class="{ 'icon-selected': editedSite.tooltipIcon === icon }">
+                              {{ icon }}
+                            </v-icon>
+
+
+                            <!-- <v-select :items="icons" item-title="text" item-value="icon" label="Select icon for tooltip">
+                              <template v-slot:item="{ props, item }">
+                                <v-list-item v-bind="props">
+                                  <v-icon v-if="item.value" >{{ item.value }}</v-icon>
+                                  <v-list-item-title>{{ item.title }}</v-list-item-title>
+                                </v-list-item>
+                              </template>
+
+                              
+                            </v-select> -->
+
+
                           </v-col>
                         </v-row>
 
@@ -228,6 +257,34 @@ const currentStory = computed(() => storiesStore.currentStory)
 const sitesData = computed(() => currentStory.value.sites);
 
 const search = ref("")
+
+const icons = [
+'mdi-home',
+  'mdi-airplane',
+  'mdi-bike',
+  'mdi-car',
+  'mdi-train',
+  'mdi-theater',
+  'mdi-church',
+  'mdi-city',
+  'mdi-tree',
+  'mdi-parking',
+  'mdi-hospital-building',
+  'mdi-school',
+  'mdi-beach',
+  'mdi-martini',
+  'mdi-shopping',
+  'mdi-gas-station',
+  'mdi-hotel',
+  'mdi-music-note',
+  'mdi-silverware-variant'
+]
+
+
+const selectIcon = (icon) => {
+  editedSite.value.tooltipIcon = icon; // Set the clicked icon as the selected icon
+  console.log(editedSite.value.tooltipIcon)
+}
 
 const popupContentRef = ref(null)
 const poppedupFeature = ref({})
@@ -762,12 +819,18 @@ const drawMap = () => {
 
         setTimeout(() => {
           const tooltipElement = document.querySelector(`.${tooltipClassName}`);
+
+          // only set icon in <i> when an icon is defined on site
+          //todo derive font-size from the site.tooltipSize property
+          //todo tooltip does not refresh properly after save from edit window (it reverts to the style defined by my-custom-tooltip )
+
+          tooltipElement.innerHTML = `<i class="mdi ${site.tooltipIcon?site.tooltipIcon:''}" style="font-size: 24px; color=${site.tooltipColor?site.tooltipColor:'black'}"></i>${feature.properties.name}`;
           // set font color style on tooltipElement
           // set background color style on tooltipElement
           tooltipElement.style.fontSize = '18px';
-          tooltipElement.style.color = site.tooltipColor?site.tooltipColor:'black';
-          tooltipElement.style.background = site.tooltipBackgroundColor?site.tooltipBackgroundColor:'yellow';
-//          createCSSSelector(`.${tooltipClassName}`, `color: ${site.tooltipColor?site.tooltipColor:'black'};background: ${site.tooltipBackgroundColor?site.tooltipBackgroundColor:'yellow'}; border: 1px solid black; font-size: 18px;color: black;`);
+          tooltipElement.style.color = site.tooltipColor ? site.tooltipColor : 'black';
+          tooltipElement.style.background = site.tooltipBackgroundColor ? site.tooltipBackgroundColor : 'yellow';
+          //          createCSSSelector(`.${tooltipClassName}`, `color: ${site.tooltipColor?site.tooltipColor:'black'};background: ${site.tooltipBackgroundColor?site.tooltipBackgroundColor:'yellow'}; border: 1px solid black; font-size: 18px;color: black;`);
 
 
           if (tooltipElement) {
@@ -776,7 +839,7 @@ const drawMap = () => {
               // Add any click handling logic here
             });
           }
-        }, 10); // Small timeout to ensure the tooltip is rendered
+        }, 50); // Small timeout to ensure the tooltip is rendered
 
       }
       layer.bindPopup((layer) => {
@@ -1144,5 +1207,10 @@ function createCSSSelector(selector, style) {
 .leaflet-bottom.leaflet-left .leaflet-control {
   margin-bottom: 0px;
   padding: 0px;
+}
+
+.icon-selected {
+  transform: scale(1.5);
+  /* Makes the icon larger */
 }
 </style>
