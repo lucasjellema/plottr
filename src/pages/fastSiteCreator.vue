@@ -92,6 +92,11 @@
                       <v-text-field label="Time" type="time" v-model="editedSite.timePart"></v-text-field>
                     </v-expansion-panel-text>
                   </v-expansion-panel>
+                  <v-expansion-panel title="Description" collapse-icon="mdi-pencil-box-outline" expand-icon="mdi-pencil-box-outline">
+                    <v-expansion-panel-text>
+                      <v-textarea v-model="editedSite.description" label="Description" auto-grow clearable></v-textarea>
+                    </v-expansion-panel-text>
+                  </v-expansion-panel>
                   <v-expansion-panel title="Image" collapse-icon="mdi-image" expand-icon="mdi-image">
                     <v-expansion-panel-text>
 
@@ -551,6 +556,12 @@ const centerMap = (e) => {
   map.value.panTo(e.latlng);
 }
 
+const centerAndZoomMap = (e) => {
+  map.value.panTo(e.latlng, {animate:false});
+  map.value.zoomIn(5)
+
+}
+
 const geoJSONToClipboard = () => {
   const geoJSON = geoJsonLayer.toGeoJSON()
   //every feature should have a property called tooltip that contains the city and country and the formatted timestamp
@@ -626,6 +637,9 @@ const drawMap = () => {
     contextmenuItems: [{
       text: 'Center map here',
       callback: centerMap
+    },{
+      text: 'Zoom in here',
+      callback: centerAndZoomMap
     }, {
       text: 'GeoJSON to Clipboard',
       callback: geoJSONToClipboard
