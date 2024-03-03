@@ -122,52 +122,18 @@
                           <v-col cols="12">
                             <!-- Display Selected Color & Input Field to Show/Change Color -->
                             <v-text-field v-model="editedSite.backgroundColor" readonly append-icon="mdi-pencil"
-                              :style="{ 'background-color': editedSite.tooltipColor }"
+                              :style="{ 'background-color': editedSite.tooltipColor }" prepend-icon="mdi-presentation"
                               @click:append="showTooltipColorPicker = !showTooltipColorPicker"></v-text-field>
                             <v-dialog v-model="showTooltipColorPicker" width="300px">
                               <v-card>
                                 <v-color-picker v-model="editedSite.tooltipColor" hide-inputs></v-color-picker>
                               </v-card>
                             </v-dialog>
-                            <v-checkbox v-model="editedSite.showLabel" label="Show Label on Map"></v-checkbox>
-                            <!-- <v-radio-group v-model="editedSite.tooltipDirection" inline>
-                              <template v-slot:label>
-                                <div>Position of Label (with regards to marker)</div>
-                              </template>
-                              <v-radio value="right" true-icon="mdi-arrow-right" title="ding"
-                                :color="editedSite.tooltipDirection == 'right' ? 'purple' : 'white'"><template v-slot:label>
-                                  <v-icon>mdi-arrow-right</v-icon>
-                                </template></v-radio>
-                              <v-radio value="left"><template v-slot:label>
-                                  <v-icon>mdi-arrow-left</v-icon>
-                                </template></v-radio>
-                              <v-radio value="top"><template v-slot:label>
-                                  <v-icon>mdi-arrow-up</v-icon>
-                                </template></v-radio>
-                              <v-radio value="bottom"><template v-slot:label>
-                                  <v-icon>mdi-arrow-down</v-icon>
-                                </template></v-radio>
-                              <v-radio value="center"><template v-slot:label>
-                                  <v-icon>mdi-radiobox-marked</v-icon>
-                                </template></v-radio>
-                              <v-radio value="auto"><template v-slot:label>
-                                  <v-icon>mdi-arrow-down</v-icon>
-                                </template></v-radio>
+                            <v-checkbox v-model="editedSite.showTooltip" label="Show Label on Map"></v-checkbox>
+                            <TooltipDirectionSelector v-model="editedSite.tooltipDirection"></TooltipDirectionSelector>
+                          </v-col>
+                        </v-row>
 
-                            </v-radio-group> -->
-                            Define location of label
-                          </v-col>
-                        </v-row>
-                        <v-row v-for="(row, rowIndex) in 3" :key="rowIndex" >
-                          <v-col v-for="(col, colIndex) in 3" :key="colIndex" cols="1" offset="0"
-                            class="d-flex justify-center align-center"
-                            :class="{ 'highlight': isSelected(rowIndex, colIndex) }"
-                            @click="selectCell(rowIndex, colIndex)">
-                            <v-icon v-if="shouldShowIcon(rowIndex, colIndex)" large>
-                              {{ getIconName(rowIndex, colIndex) }}
-                            </v-icon>
-                          </v-col>
-                        </v-row>
                       </v-container>
 
                     </v-expansion-panel-text>
@@ -226,6 +192,7 @@ import 'leaflet-contextmenu';
 import 'leaflet-contextmenu/dist/leaflet.contextmenu.min.css';
 import { ref, onMounted } from 'vue';
 import { useLocationLibrary } from '@/composables/useLocationLibrary';
+import TooltipDirectionSelector from '@/components/TooltipDirectionSelector.vue'
 
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
@@ -245,42 +212,6 @@ const currentStory = computed(() => storiesStore.currentStory)
 const sitesData = computed(() => currentStory.value.sites);
 
 const search = ref("")
-
-
-const selectedDirection = ref("")
-const selectedCell = ref({})
-const shouldShowIcon = (rowIndex, colIndex) => {
-  // Only show icons in top center, bottom center, middle left, and middle right cells
-  return (
-    (rowIndex === 0 && colIndex === 1) ||
-    (rowIndex === 1 ) ||
-    (rowIndex === 2 && (colIndex === 1 || colIndex === 2))
-  );
-}
-const getIconName = (rowIndex, colIndex) => {
-  // Determine the icon based on the cell position
-  if (rowIndex === 0 && colIndex === 1) return 'mdi-arrow-up';
-  if (rowIndex === 2 && colIndex === 1) return 'mdi-arrow-down';
-  if (rowIndex === 1 && colIndex === 0) return 'mdi-arrow-left';
-  if (rowIndex === 1 && colIndex === 2) return 'mdi-arrow-right';
-  if (rowIndex === 1 && colIndex === 1) return 'mdi-radiobox-marked';
-  if (rowIndex === 2 && colIndex === 2) return 'mdi-xml';
-}
-const
-  selectCell = (rowIndex, colIndex) => {
-    // Update the model based on the selected cell
-    selectedCell.value = { rowIndex, colIndex };
-    selectedDirection.value = getIconName(rowIndex, colIndex);
-  }
-
-const isSelected = (rowIndex, colIndex) => {
-  // Check if the cell is selected
-  return (
-    selectedCell.value &&
-    selectedCell.value.rowIndex === rowIndex &&
-    selectedCell.value.colIndex === colIndex
-  );
-}
 
 const popupContentRef = ref(null)
 const poppedupFeature = ref({})
@@ -365,6 +296,7 @@ const saveItem = () => {
   editedSite.value.timestamp = new Date(year, month - 1, day, hours, minutes); // TODO do something about the TIMEZONE!! 
 
   storiesStore.updateSite(editedSite.value)
+  refreshSite(editedSite.value)
 
   const tooltip = document.getElementsByClassName(`tooltip${editedSite.value.id}`.replace(/-/g, ""))[0]
   if (tooltip) {
@@ -461,13 +393,23 @@ let editedSite = ref({
   imageUrl: '',
   imageId: '',
   relevance: 1, // 0 is low, 1 is normal, 2 is high, 3 is low
-  timestamp: new Date()
+  timestamp: new Date(),
+  showTooltip: true,
+  tooltipDirection: 'auto'
+
 })
 
 
 
 const editItem = (site) => {
   editedSite.value = { ...site }; // Make a copy of the item to edit
+  // if site does not contain property showTooltip, set it to true
+  if (!site.hasOwnProperty('showTooltip')) {
+    editedSite.value.showTooltip = true
+  }
+  if (!site.tooltipDirection) {
+    editedSite.value.tooltipDirection = 'auto'
+  }
 
   // editedSite.value.geoJSONText = JSON.stringify(editedSite.value.geoJSON)
   const dateForTimestamp = new Date(editedSite.value.timestamp)
@@ -500,13 +442,13 @@ const handleGPSData = (event) => {
 }
 
 const removeSite = (site) => {
-  geoJsonLayer.eachLayer(function (layer) {
-    // Check if this layer's feature has the property 'id' equal to 87
-    if (layer.feature.properties.id === site.id) {
-      geoJsonLayer.removeLayer(layer);
-    }
-  });
+  hideSite(site);
   storiesStore.removeSite(site)
+}
+
+const refreshSite = (site) => {
+  hideSite(site);
+  geoJsonLayer.addData(site.geoJSON);
 }
 
 
@@ -581,6 +523,15 @@ const deleteMarker = marker => {
 
 const hideMarker = marker => {
   marker.remove()
+}
+
+const hideSite = (site) => {
+  geoJsonLayer.eachLayer(function (layer) {
+    // Check if this layer's feature has the property 'id' equal to 87
+    if (layer.feature.properties.id === site.id) {
+      geoJsonLayer.removeLayer(layer);
+    }
+  });
 }
 
 function findFeaturesWithinConsolidationRadius(targetFeature, geojsonLayer) {
@@ -771,31 +722,35 @@ const drawMap = () => {
   geoJsonLayer = L.geoJSON(null, {
     draggable: true,
     onEachFeature: async (feature, layer) => {
+      const site = storiesStore.getSite(feature.properties.id)
       const tooltip = `${feature.properties.name}`;
       const tooltipClassName = `tooltip${feature.properties.id}`.replace(/-/g, "")
-      layer.bindTooltip(tooltip, {
-        permanent: true
-        , className: `my-custom-tooltip ${tooltipClassName}`
-        , direction: 'auto' // derive direction from feature properties ; also opacity , 
-        , interactive: true // needed to handle tooltip click events
-      })
-
-      //TODO allow user to edit tool tip characteristics; store them in geojson properties; use them to set direction and opacity, and color, background color, font-size
-
-      setTimeout(() => {
-        var tooltipElement = document.querySelector(`.${tooltipClassName}`);
-        createCSSSelector(`.${tooltipClassName}`, `background: yellow; border: 1px solid black; font-size: 18px;color: black;`);
+      if (site.showTooltip) {
 
 
-        if (tooltipElement) {
-          tooltipElement.addEventListener('click', function () {
-            console.log(`Tooltip was clicked! for feature ${feature.properties.name}`);
-            // Add any click handling logic here
-          });
-        }
-      }, 10); // Small timeout to ensure the tooltip is rendered
+        layer.bindTooltip(tooltip, {
+          permanent: true
+          , className: `my-custom-tooltip ${tooltipClassName}`
+          , direction: site.tooltipDirection ? site.tooltipDirection : 'auto' // derive direction from feature properties ; also opacity , 
+          , interactive: true // needed to handle tooltip click events
+        })
+
+        //TODO allow user to edit tool tip characteristics; store them in geojson properties; use them to set direction and opacity, and color, background color, font-size
+
+        setTimeout(() => {
+          const tooltipElement = document.querySelector(`.${tooltipClassName}`);
+          createCSSSelector(`.${tooltipClassName}`, `background: yellow; border: 1px solid black; font-size: 18px;color: black;`);
 
 
+          if (tooltipElement) {
+            tooltipElement.addEventListener('click', function () {
+              console.log(`Tooltip was clicked! for feature ${feature.properties.name}`);
+              // Add any click handling logic here
+            });
+          }
+        }, 10); // Small timeout to ensure the tooltip is rendered
+
+      }
       layer.bindPopup((layer) => {
         poppedupSite.value = storiesStore.getSite(layer.feature.properties.id)
         if (mapEditMode.value) {
@@ -1160,10 +1115,5 @@ function createCSSSelector(selector, style) {
 .leaflet-bottom.leaflet-left .leaflet-control {
   margin-bottom: 0px;
   padding: 0px;
-}
-
-.highlight {
-  background-color: #e0e0e0;
-  /* Light grey background for the selected cell */
 }
 </style>
