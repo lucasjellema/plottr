@@ -92,7 +92,8 @@
                       <v-text-field label="Time" type="time" v-model="editedSite.timePart"></v-text-field>
                     </v-expansion-panel-text>
                   </v-expansion-panel>
-                  <v-expansion-panel title="Description" collapse-icon="mdi-pencil-box-outline" expand-icon="mdi-pencil-box-outline">
+                  <v-expansion-panel title="Description" collapse-icon="mdi-pencil-box-outline"
+                    expand-icon="mdi-pencil-box-outline">
                     <v-expansion-panel-text>
                       <v-textarea v-model="editedSite.description" label="Description" auto-grow clearable></v-textarea>
                     </v-expansion-panel-text>
@@ -113,7 +114,64 @@
 
                     </v-expansion-panel-text>
                   </v-expansion-panel>
+                  <v-expansion-panel title="Style" collapse-icon="mdi-brush" expand-icon="mdi-brush">
+                    <v-expansion-panel-text>
+                      <v-container>
+                        <v-row>
 
+                          <v-col cols="12">
+                            <!-- Display Selected Color & Input Field to Show/Change Color -->
+                            <v-text-field v-model="editedSite.backgroundColor" readonly append-icon="mdi-pencil"
+                              :style="{ 'background-color': editedSite.tooltipColor }"
+                              @click:append="showTooltipColorPicker = !showTooltipColorPicker"></v-text-field>
+                            <v-dialog v-model="showTooltipColorPicker" width="300px">
+                              <v-card>
+                                <v-color-picker v-model="editedSite.tooltipColor" hide-inputs></v-color-picker>
+                              </v-card>
+                            </v-dialog>
+                            <v-checkbox v-model="editedSite.showLabel" label="Show Label on Map"></v-checkbox>
+                            <!-- <v-radio-group v-model="editedSite.tooltipDirection" inline>
+                              <template v-slot:label>
+                                <div>Position of Label (with regards to marker)</div>
+                              </template>
+                              <v-radio value="right" true-icon="mdi-arrow-right" title="ding"
+                                :color="editedSite.tooltipDirection == 'right' ? 'purple' : 'white'"><template v-slot:label>
+                                  <v-icon>mdi-arrow-right</v-icon>
+                                </template></v-radio>
+                              <v-radio value="left"><template v-slot:label>
+                                  <v-icon>mdi-arrow-left</v-icon>
+                                </template></v-radio>
+                              <v-radio value="top"><template v-slot:label>
+                                  <v-icon>mdi-arrow-up</v-icon>
+                                </template></v-radio>
+                              <v-radio value="bottom"><template v-slot:label>
+                                  <v-icon>mdi-arrow-down</v-icon>
+                                </template></v-radio>
+                              <v-radio value="center"><template v-slot:label>
+                                  <v-icon>mdi-radiobox-marked</v-icon>
+                                </template></v-radio>
+                              <v-radio value="auto"><template v-slot:label>
+                                  <v-icon>mdi-arrow-down</v-icon>
+                                </template></v-radio>
+
+                            </v-radio-group> -->
+                            Define location of label
+                          </v-col>
+                        </v-row>
+                        <v-row v-for="(row, rowIndex) in 3" :key="rowIndex" >
+                          <v-col v-for="(col, colIndex) in 3" :key="colIndex" cols="1" offset="0"
+                            class="d-flex justify-center align-center"
+                            :class="{ 'highlight': isSelected(rowIndex, colIndex) }"
+                            @click="selectCell(rowIndex, colIndex)">
+                            <v-icon v-if="shouldShowIcon(rowIndex, colIndex)" large>
+                              {{ getIconName(rowIndex, colIndex) }}
+                            </v-icon>
+                          </v-col>
+                        </v-row>
+                      </v-container>
+
+                    </v-expansion-panel-text>
+                  </v-expansion-panel>
 
                 </v-expansion-panels>
               </v-form>
@@ -188,12 +246,50 @@ const sitesData = computed(() => currentStory.value.sites);
 
 const search = ref("")
 
+
+const selectedDirection = ref("")
+const selectedCell = ref({})
+const shouldShowIcon = (rowIndex, colIndex) => {
+  // Only show icons in top center, bottom center, middle left, and middle right cells
+  return (
+    (rowIndex === 0 && colIndex === 1) ||
+    (rowIndex === 1 ) ||
+    (rowIndex === 2 && (colIndex === 1 || colIndex === 2))
+  );
+}
+const getIconName = (rowIndex, colIndex) => {
+  // Determine the icon based on the cell position
+  if (rowIndex === 0 && colIndex === 1) return 'mdi-arrow-up';
+  if (rowIndex === 2 && colIndex === 1) return 'mdi-arrow-down';
+  if (rowIndex === 1 && colIndex === 0) return 'mdi-arrow-left';
+  if (rowIndex === 1 && colIndex === 2) return 'mdi-arrow-right';
+  if (rowIndex === 1 && colIndex === 1) return 'mdi-radiobox-marked';
+  if (rowIndex === 2 && colIndex === 2) return 'mdi-xml';
+}
+const
+  selectCell = (rowIndex, colIndex) => {
+    // Update the model based on the selected cell
+    selectedCell.value = { rowIndex, colIndex };
+    selectedDirection.value = getIconName(rowIndex, colIndex);
+  }
+
+const isSelected = (rowIndex, colIndex) => {
+  // Check if the cell is selected
+  return (
+    selectedCell.value &&
+    selectedCell.value.rowIndex === rowIndex &&
+    selectedCell.value.colIndex === colIndex
+  );
+}
+
 const popupContentRef = ref(null)
 const poppedupFeature = ref({})
 const poppedupSite = ref({})
 const showPopup = ref(false)
 const showEditSitePopup = ref(false)
 const showMapFiltersPopup = ref(false)
+
+const showTooltipColorPicker = ref(false)
 const imageMetadata = ref()
 const mapEditMode = ref(false)
 const mapClusterMode = ref(false)
@@ -266,7 +362,7 @@ const saveItem = () => {
 
   const [year, month, day] = editedSite.value.datePart.split('-');
   const [hours, minutes] = editedSite.value.timePart.split(':');
-  editedSite.value.timestamp = new Date(year, month - 1, day, hours, minutes);
+  editedSite.value.timestamp = new Date(year, month - 1, day, hours, minutes); // TODO do something about the TIMEZONE!! 
 
   storiesStore.updateSite(editedSite.value)
 
@@ -372,6 +468,7 @@ let editedSite = ref({
 
 const editItem = (site) => {
   editedSite.value = { ...site }; // Make a copy of the item to edit
+
   // editedSite.value.geoJSONText = JSON.stringify(editedSite.value.geoJSON)
   const dateForTimestamp = new Date(editedSite.value.timestamp)
   editedSite.value.datePart = dateForTimestamp.toISOString().slice(0, 10)
@@ -557,7 +654,7 @@ const centerMap = (e) => {
 }
 
 const centerAndZoomMap = (e) => {
-  map.value.panTo(e.latlng, {animate:false});
+  map.value.panTo(e.latlng, { animate: false });
   map.value.zoomIn(5)
 
 }
@@ -637,7 +734,7 @@ const drawMap = () => {
     contextmenuItems: [{
       text: 'Center map here',
       callback: centerMap
-    },{
+    }, {
       text: 'Zoom in here',
       callback: centerAndZoomMap
     }, {
@@ -683,7 +780,7 @@ const drawMap = () => {
         , interactive: true // needed to handle tooltip click events
       })
 
-//TODO allow user to edit tool tip characteristics; store them in geojson properties; use them to set direction and opacity, and color, background color, font-size
+      //TODO allow user to edit tool tip characteristics; store them in geojson properties; use them to set direction and opacity, and color, background color, font-size
 
       setTimeout(() => {
         var tooltipElement = document.querySelector(`.${tooltipClassName}`);
@@ -1063,5 +1160,10 @@ function createCSSSelector(selector, style) {
 .leaflet-bottom.leaflet-left .leaflet-control {
   margin-bottom: 0px;
   padding: 0px;
+}
+
+.highlight {
+  background-color: #e0e0e0;
+  /* Light grey background for the selected cell */
 }
 </style>
