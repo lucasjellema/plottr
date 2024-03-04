@@ -252,7 +252,7 @@ import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import { MarkerClusterGroup } from 'leaflet.markercluster';
 
-const { mapZoomToResolution } = useLocationLibrary();
+const { mapZoomToResolution,isValidCoordinateFormat, isValidGeoJSON } = useLocationLibrary();
 import { useFunctionCallThrottler } from '@/composables/useFunctionCallThrottler';
 const { enqueueCall: enqueueCallToReverseGeocode } = useFunctionCallThrottler(1500, reverseGeocode);
 
@@ -853,26 +853,6 @@ const drawMap = () => {
           const tooltipElement = document.querySelector(`.${tooltipClassName}`);
           refreshTooltip(site, tooltipElement)
 
-
-          // // only set icon in <i> when an icon is defined on site
-          // //todo tooltip does not refresh properly after save from edit window (it reverts to the style defined by my-custom-tooltip )
-
-          // tooltipElement.innerHTML = `<i class="mdi ${site.tooltipIcon ? site.tooltipIcon : ''}" 
-          // style="font-size: ${site.tooltipSize ? 10 + 8*site.tooltipSize : '14'}px; color=${site.tooltipColor ? site.tooltipColor : 'black'}"></i>${feature.properties.name}`;
-          // // set font color style on tooltipElement
-          // // set background color style on tooltipElement
-          // tooltipElement.style.fontSize = `${site.tooltipSize ? 10 + 8*site.tooltipSize : '14'}px`;
-          // tooltipElement.style.color = `${site.tooltipColor ? site.tooltipColor : 'black'}`;
-          // tooltipElement.style.background = site.tooltipBackgroundColor ? site.tooltipBackgroundColor : 'yellow';
-          // //          createCSSSelector(`.${tooltipClassName}`, `color: ${site.tooltipColor?site.tooltipColor:'black'};background: ${site.tooltipBackgroundColor?site.tooltipBackgroundColor:'yellow'}; border: 1px solid black; font-size: 18px;color: black;`);
-
-
-          // if (tooltipElement) {
-          //   tooltipElement.addEventListener('click', function () {
-          //     console.log(`Tooltip was clicked! for feature ${feature.properties.name}`);
-          //     // Add any click handling logic here
-          //   });
-          // }
         }, 50); // Small timeout to ensure the tooltip is rendered
 
       }
@@ -1131,42 +1111,42 @@ function reverseGeocode(geoJsonFeature, site) {
 }
 
 
-function isValidCoordinateFormat(str) {
-  // Regular expression for matching coordinates with at least one decimal digit
-  const regex = /^-?\d+\.\d+, -?\d+\.\d+$/;
-  return regex.test(str);
-}
+// function isValidCoordinateFormat(str) {
+//   // Regular expression for matching coordinates with at least one decimal digit
+//   const regex = /^-?\d+\.\d+, -?\d+\.\d+$/;
+//   return regex.test(str);
+// }
 
 
 
-function isValidGeoJSON(str) {
-  try {
-    // Step 1: Attempt to parse the string as JSON
-    const obj = JSON.parse(str);
+// function isValidGeoJSON(str) {
+//   try {
+//     // Step 1: Attempt to parse the string as JSON
+//     const obj = JSON.parse(str);
 
-    // Step 2: Verify that the parsed object adheres to the GeoJSON specification
-    // Check for the existence of a "type" property
-    if (!obj.type) {
-      return false;
-    }
+//     // Step 2: Verify that the parsed object adheres to the GeoJSON specification
+//     // Check for the existence of a "type" property
+//     if (!obj.type) {
+//       return false;
+//     }
 
-    // Check if the "type" is one of the valid GeoJSON types
-    const validTypes = ["FeatureCollection", "Feature", "Point", "LineString", "Polygon", "MultiPoint", "MultiLineString", "MultiPolygon", "GeometryCollection"];
-    if (!validTypes.includes(obj.type)) {
-      return false;
-    }
+//     // Check if the "type" is one of the valid GeoJSON types
+//     const validTypes = ["FeatureCollection", "Feature", "Point", "LineString", "Polygon", "MultiPoint", "MultiLineString", "MultiPolygon", "GeometryCollection"];
+//     if (!validTypes.includes(obj.type)) {
+//       return false;
+//     }
 
-    // Further checks can be added here based on the GeoJSON specification requirements
-    // for each type, such as checking for the existence and validity of the "features" array
-    // in a FeatureCollection, the "geometry" object in a Feature, etc.
+//     // Further checks can be added here based on the GeoJSON specification requirements
+//     // for each type, such as checking for the existence and validity of the "features" array
+//     // in a FeatureCollection, the "geometry" object in a Feature, etc.
 
-    // If the checks pass, the object is likely valid GeoJSON
-    return true;
-  } catch (e) {
-    // The string could not be parsed as JSON
-    return false;
-  }
-}
+//     // If the checks pass, the object is likely valid GeoJSON
+//     return true;
+//   } catch (e) {
+//     // The string could not be parsed as JSON
+//     return false;
+//   }
+// }
 
 const handlePastedText = (text) => {
   // handle pasted geojson
