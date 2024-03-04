@@ -165,26 +165,8 @@
                           </v-col>
                         </v-row>
                         <v-row>
-                          <v-col cols="2" v-for="(icon, index) in icons" :key="index" class="text-center"
-                            @click="selectIcon(icon)">
-                            <v-icon large :color="editedSite.tooltipIcon === icon ? 'blue' : 'black'"
-                              :class="{ 'icon-selected': editedSite.tooltipIcon === icon }">
-                              {{ icon }}
-                            </v-icon>
-
-
-                            <!-- <v-select :items="icons" item-title="text" item-value="icon" label="Select icon for tooltip">
-                              <template v-slot:item="{ props, item }">
-                                <v-list-item v-bind="props">
-                                  <v-icon v-if="item.value" >{{ item.value }}</v-icon>
-                                  <v-list-item-title>{{ item.title }}</v-list-item-title>
-                                </v-list-item>
-                              </template>
-
-                              
-                            </v-select> -->
-
-
+                          <v-col cols="8">
+                            <IconSelector v-model="editedSite.tooltipIcon"></IconSelector>
                           </v-col>
                         </v-row>
 
@@ -247,6 +229,7 @@ import 'leaflet-contextmenu/dist/leaflet.contextmenu.min.css';
 import { ref, onMounted } from 'vue';
 import { useLocationLibrary } from '@/composables/useLocationLibrary';
 import TooltipDirectionSelector from '@/components/TooltipDirectionSelector.vue'
+import IconSelector from '@/components/IconSelector.vue'
 
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
@@ -267,33 +250,33 @@ const sitesData = computed(() => currentStory.value.sites);
 
 const search = ref("")
 
-const icons = [
-  'mdi-home',
-  'mdi-airplane',
-  'mdi-bike',
-  'mdi-car',
-  'mdi-train',
-  'mdi-theater',
-  'mdi-church',
-  'mdi-city',
-  'mdi-tree',
-  'mdi-parking',
-  'mdi-hospital-building',
-  'mdi-school',
-  'mdi-beach',
-  'mdi-martini',
-  'mdi-shopping',
-  'mdi-gas-station',
-  'mdi-hotel',
-  'mdi-music-note',
-  'mdi-silverware-variant'
-]
+// const icons = [
+//   'mdi-home',
+//   'mdi-airplane',
+//   'mdi-bike',
+//   'mdi-car',
+//   'mdi-train',
+//   'mdi-theater',
+//   'mdi-church',
+//   'mdi-city',
+//   'mdi-tree',
+//   'mdi-parking',
+//   'mdi-hospital-building',
+//   'mdi-school',
+//   'mdi-beach',
+//   'mdi-martini',
+//   'mdi-shopping',
+//   'mdi-gas-station',
+//   'mdi-hotel',
+//   'mdi-music-note',
+//   'mdi-silverware-variant'
+// ]
 
 
-const selectIcon = (icon) => {
-  editedSite.value.tooltipIcon = icon; // Set the clicked icon as the selected icon
-  console.log(editedSite.value.tooltipIcon)
-}
+// const selectIcon = (icon) => {
+//   editedSite.value.tooltipIcon = icon; // Set the clicked icon as the selected icon
+//   console.log(editedSite.value.tooltipIcon)
+// }
 
 const popupContentRef = ref(null)
 const poppedupFeature = ref({})
